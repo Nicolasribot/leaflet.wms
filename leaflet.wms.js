@@ -36,7 +36,11 @@ wms.Source = L.Layer.extend({
     'options': {
         'tiled': false,
         'identify': true, 
-        
+        // adds WMS GetFeatureInfo specific parameters to the source
+        // TODO: list of parameters per WMS version to handle ?
+        'info_format': 'text/html',
+        'feature_count': 1,
+        'exceptions': 'XML'
     },
 
     'initialize': function(url, options) {
@@ -165,10 +169,18 @@ wms.Source = L.Layer.extend({
         var infoParams = {
             'request': 'GetFeatureInfo',
             'query_layers': layers.join(','),
+            'info_format': this.options.info_format,
+            'feature_count': this.options.feature_count,
+            'exceptions': this.options.exceptions,
             'X': Math.round(point.x),
             'Y': Math.round(point.y)
         };
-        return L.extend({}, wmsParams, infoParams);
+        
+        // copies wmsParams to be able to removes WMS GetMap parameters to avoid WMS server errors
+        var delParams = L.extend({}, wmsParams);
+        delete delParams.format;
+        
+        return L.extend({}, delParams, infoParams);
     },
 
     'parseFeatureInfo': function(result, url) {
@@ -280,15 +292,29 @@ wms.Overlay = L.Layer.extend({
         'attribution': '',
         'opacity': 1
     },
+    
+    // list of getfeatureinfo (gfi) parameters to skip
+    // todo: clean that with Source's gfi own params
+    gfiOptions: {
+        'info_format': 1,
+        'feature_count': 1,
+        'exceptions': 1
+    },
 
     'initialize': function(url, options) {
         this._url = url;
 
-        // Move WMS parameters to params object
+        // Move WMS parameters to params object, skipping GetFeatureInfo params
+        // to only delete them from given options to avoid adding these parameters
+        // in the GetMap request 
         var params = {};
         for (var opt in options) {
              if (!(opt in this.options)) {
-                 params[opt] = options[opt];
+                 if (!(opt in this.gfiOptions)) {
+                     params[opt] = options[opt];
+                 } else {
+                     console.log('skipping option: ' + opt + ' : gfi parameter');
+                 }
                  delete options[opt];
              }
         }
