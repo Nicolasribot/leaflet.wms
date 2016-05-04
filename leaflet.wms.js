@@ -35,7 +35,8 @@ var wms = {};
 wms.Source = L.Layer.extend({
     'options': {
         'tiled': false,
-        'identify': true
+        'identify': true, 
+        
     },
 
     'initialize': function(url, options) {
