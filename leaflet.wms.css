@@ -1,0 +1,16 @@
+.leaflet-wms-popup .leaflet-popup-content-wrapper table {
+    font-size:10px;
+    border-collapse: collapse;
+}
+.leaflet-wms-popup .leaflet-popup-content-wrapper a {
+    color:rgba(255,255,255,0.5);
+}
+.leaflet-wms-popup .leaflet-popup-tip-container {
+    width:30px;
+    height:15px;
+}
+.leaflet-wms-popup .leaflet-popup-tip {
+    border-left:15px solid transparent;
+    border-right:15px solid transparent;
+    border-top:15px solid #2c3e50;
+}

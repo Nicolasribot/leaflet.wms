@@ -52,9 +52,11 @@ wms.Source = L.Layer.extend({
 
     'createOverlay': function(tiled) {
         // Create overlay with all options other than tiled & identify
+        // added other new props
         var overlayOptions = {};
         for (var opt in this.options) {
-            if (opt != 'tiled' && opt != 'identify') {
+            if (opt != 'tiled' && opt != 'identify' && opt != 'info_format'
+                    && opt != 'feature_count' && opt != 'exceptions') {
                 overlayOptions[opt] = this.options[opt];
             }
         }
@@ -190,7 +192,13 @@ wms.Source = L.Layer.extend({
             // Try loading content in <iframe>.
             result = "<iframe src='" + url + "' style='border:none'>";
         }
-        return result;
+        // TODO: test: Removes <br> from text/html format
+        var ret = result;
+        if (this.options.info_format === 'text/html') {
+            ret = result.replace('<BR>', '').replace('</BR>', '');
+        }
+        //console.log(ret);
+        return ret;
     },
 
     'showFeatureInfo': function(latlng, info) {
@@ -198,7 +206,12 @@ wms.Source = L.Layer.extend({
         if (!this._map) {
             return;
         }
-        this._map.openPopup(info, latlng);
+        // TODO: move to config:
+        var config = {
+          'maxHeight': 400,
+          'className': 'leaflet-wms-popup'
+        };
+        this._map.openPopup(info, latlng, config);
     },
 
     'showWaiting': function() {
@@ -313,7 +326,7 @@ wms.Overlay = L.Layer.extend({
                  if (!(opt in this.gfiOptions)) {
                      params[opt] = options[opt];
                  } else {
-                     console.log('skipping option: ' + opt + ' : gfi parameter');
+//                     console.log('skipping option: ' + opt + ' : gfi parameter');
                  }
                  delete options[opt];
              }
