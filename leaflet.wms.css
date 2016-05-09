@@ -14,3 +14,38 @@
     border-right:15px solid transparent;
     border-top:15px solid #2c3e50;
 }
+
+/*Info style*/
+
+.leaflet-wms-info-link {
+    white-space: nowrap;
+    width: 18px;
+    height:18px;
+    display: inline-block;
+    background:transparent url('info.png') center bottom no-repeat content-box;
+}
+
+.leaflet-wms-info-link:hover {
+    background-image: url('info.png');
+}
+
+.leaflet-wms-legend-link {
+    white-space: nowrap;
+    width: 18px;
+    height:18px;
+    display: inline-block;
+    background:transparent url('legend.png') center bottom no-repeat content-box;
+}
+
+.leaflet-wms-legend-link:hover {
+    background-image: url('legend.png');
+}
+
+.leaflet-wms-legend-link-off {
+    background-image: url('legend_off.png');
+}
+
+.leaflet-wms-info-link-off {
+    background-image: url('info_off.png');
+}
+
