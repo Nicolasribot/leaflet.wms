@@ -8,48 +8,72 @@ requirejs.config({
 define(['leaflet', 'leaflet.wms'],
 function(L, wms) {
 
-var overlayMap = createMap('overlay-map', false);
-var tiledMap = createMap('tiled-map', true);
+var autowmsMap = createMap('autowms-map', false, true);
+var overlayMap = createMap('overlay-map', false, false);
+var tiledMap = createMap('tiled-map', true, false);
 
-function createMap(div, tiled) {
+function createMap(div, tiled, autowms) {
     // Map configuration
     var map = L.map(div);
-    map.setView([45, -93.2], 6);
+//    map.setView([45, -93.2], 6);
+    map.setView([44.0, 4.4], 8);
 
     var basemaps = {
-        'Basemap': basemap(),
-        'Blank': blank().addTo(map)
+        'Basemap': basemap().addTo(map) ,
+        'Blank': blank()
     };
+    
+    if (autowms) {
+        // Test autowms mode: Adds only a WMS service URL
+        // Add WMS source/layers
+        var source = wms.source(
+            "http://localhost/qgis/qgis_mapserv.fcgi?map=/Users/nicolas/Projets/smage/demo/web/QGIS-Web-Client-master/projets_qgis/appli_smage.qgs",
+            {
+                "tiled": tiled,
+                // new options
+                'automws': true, // loads layers from wms service
+                'layersControl': true, // display a forked leaflet-iconLayers control
+                'info_format': 'text/html',
+                'legend_format': 'image/png',
+                'feature_count': 10
+            }        
+        );
 
-    // Add WMS source/layers
-    var source = wms.source(
-        "http://webservices.nationalatlas.gov/wms",
-        {
-            "format": "image/png",
-            "transparent": "true",
-            "attribution": "<a href='http://nationalatlas.gov'>NationalAtlas.gov</a>",
-            "tiled": tiled
-        }        
-    );
+        // adds source to map
+        source.addTo(map);
+        
+    } else {
+        var source = wms.source(
+//            "http://webservices.nationalatlas.gov/wms",
+            "http://localhost/qgis/qgis_mapserv.fcgi?map=/Users/nicolas/Projets/smage/demo/web/QGIS-Web-Client-master/projets_qgis/appli_smage.qgs",
+            {
+                "format": "image/png",
+                "transparent": "true",
+                "attribution": "<a href='#'>Nico wms</a>",
+                "tiled": tiled
+            }        
+        );
 
-    var layers = {
-        'Time Zones': source.getLayer("timezones"),
-        'Lakes & Rivers': source.getLayer("lakesrivers"),
-        'Airports': source.getLayer("airports"),
-        'State Capitals': source.getLayer("statecap")
-    };
-    for (var name in layers) {
-        layers[name].addTo(map);
+        var layers = {
+            'Time Zones': source.getLayer("Sous Bassins")
+//            ,'Lakes & Rivers': source.getLayer("lakesrivers"),
+//            'Airports': source.getLayer("airports"),
+//            'State Capitals': source.getLayer("statecap")
+        };
+        for (var name in layers) {
+            layers[name].addTo(map);
+        }
+
+        // Create layer control
+        L.control.layers(basemaps, layers).addTo(map);
+
+        // Opacity slider
+        var slider = L.DomUtil.get('range-' + div);
+        L.DomEvent.addListener(slider, 'change', function() {
+            source.setOpacity(this.value);
+        });
+
     }
-
-    // Create layer control
-    L.control.layers(basemaps, layers).addTo(map);
-
-    // Opacity slider
-    var slider = L.DomUtil.get('range-' + div);
-    L.DomEvent.addListener(slider, 'change', function() {
-        source.setOpacity(this.value);
-    });
     return map;
 }
 
@@ -63,6 +87,11 @@ function basemap() {
         'type': 'map',
         'attribution': osmAttr + ', ' + mqTilesAttr
     });
+    
+//    return L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+//        maxZoom: 19,
+//        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+//    });
 }
 
 function blank() {
@@ -75,7 +104,8 @@ function blank() {
 return {
     'maps': {
         'overlay': overlayMap,
-        'tiled': tiledMap
+        'tiled': tiledMap,
+        'autowms': autowmsMap
     }
 };
 
