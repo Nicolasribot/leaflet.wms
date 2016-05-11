@@ -337,13 +337,7 @@
                 // Try loading content in <iframe>.
                 result = "<iframe src='" + url + "' style='border:none'>";
             }
-            // TODO: test: Removes <br> from text/html format
-            var ret = result;
-            if (this.options.info_format === 'text/html') {
-                ret = result.replace('<BR>', '').replace('</BR>', '');
-            }
-            //console.log(ret);
-            return ret;
+            return result;
         },
         'showFeatureInfo': function (latlng, info) {
             // Hook to handle displaying parsed AJAX response to the user
