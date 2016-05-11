@@ -40,7 +40,7 @@
             // TODO: list of parameters per WMS version to handle ?
             'info_format': 'text/html',
             'legend_format': 'image/png',
-            'feature_count': 1,
+            'feature_count': 10,
             'exceptions': 'XML',
             'showLegend': false, // true to display a legend control and add layers control for legend
             // QGIS GetLegendGraphics parameters: TODO: check if in WMS
@@ -83,6 +83,10 @@
 
             this.showWaiting();
             this.ajax(url, done);
+            
+//            var img = $('<iframe />', {src : url});
+//            img.appendTo('body').on('load', function() {return false;});
+
 
             function done(result) {
                 this.hideWaiting();
@@ -91,16 +95,19 @@
                     this.legendCtrl = L.leafletWmsLegend(this._map, null, this);
                 }
 
-            }
-            ;
+            };
         },
         'createOverlay': function (tiled) {
             // Create overlay with all options other than specific new option (tiled, identify, info_format, etc...
             // added other new props
+            // TODO: clean that
             var overlayOptions = {};
             for (var opt in this.options) {
                 if (opt != 'tiled' && opt != 'identify' && opt != 'info_format'
-                        && opt != 'feature_count' && opt != 'exceptions') {
+                        && opt != 'feature_count' && opt != 'exceptions'
+                        && opt != 'legendLayers' && opt != 'identifyLayers'
+                        && opt != 'auto' && opt != 'showLegend' && opt != 'qgisLegend'
+                        ) {
                     overlayOptions[opt] = this.options[opt];
                 }
             }
@@ -112,10 +119,8 @@
         },
         'onAdd': function () {
             this.refreshOverlay();
-            console.log('onAdd called');
             // inject icons if not already there
-            console.log(this);
-
+//            console.log(this);
 
             var that = this;
             $(".leaflet-control-layers-overlays span").each(function () {
@@ -196,14 +201,18 @@
             $(this).nextAll('.leaflet-wms-info-link').toggleClass('leaflet-wms-info-link-off')
         },
         'toggleLegend': function () {
-            console.log($(this).html());
+//            console.log($(this).html());
             var that = $(this);
             // finds legend image by selectors and toggles it
+            // refreshes image source
             $('.wms-legend').each(function () {
                 if (this.alt === that.html().trim()) {
                     $(this).toggle();
+                    d = new Date();
+                    var src = $(this).attr("src");
+                    $(this).attr("src", src+ "&" +d.getTime());
                     $(that).nextAll('.leaflet-wms-legend-link').toggleClass('leaflet-wms-legend-link-off')
-                    console.log(that);
+//                    console.log(that);
                 }
             });
         },
@@ -618,19 +627,22 @@ L.Control.LeafletWMSLegend = L.Control.extend({
         this.container = L.DomUtil.create('div', controlClassName);
         this.container.innerHTML = '<div>Legends</div>';
         // allows scroll on container: disables on map:
-        L.DomEvent
-                .on(this.container, 'click', this._click, this)
-                .disableScrollPropagation(this.container);
+        L.DomEvent.disableScrollPropagation(this.container);
 
-        if (this.options.wmsSource) {
+        if (this.options.wmsSource && this.options.wmsSource._capabilities.Capability) {
             // builds as many images as capabilities have layers, if GetLegendGraphic is supported
             // TODO: really ??
             for (var i = 0; i < this.options.wmsSource._capabilities.Capability.Layer.Layer.length; i++) {
                 var l = this.options.wmsSource._capabilities.Capability.Layer.Layer[i];
                 if (l.Style && l.Style[0].LegendURL) {
                     var params = this.options.wmsSource.options.qgisLegend;
-                    var url = l.Style[0].LegendURL[0].OnlineResource + L.Util.getParamString(params, l.Style[0].LegendURL[0].OnlineResource, true);
-                    console.log(url);
+                    var url = l.Style[0].LegendURL[0].OnlineResource;
+                    // force a relative URL: trick to auto parse host
+                    var dummy = document.createElement("a");
+                    dummy.href = url;
+//                    url = dummy.pathname + dummy.search;
+                    url += L.Util.getParamString(params, url, true);
+                    console.log('GLG url: ' + url);
                     this._getImgEl(url, l.Name);
                 }
             }
@@ -646,36 +658,12 @@ L.Control.LeafletWMSLegend = L.Control.extend({
     _getImgEl: function (uri, alt) {
         var legendClassName = 'wms-legend wms-legend-hidden',
                 stop = L.DomEvent.stopPropagation;
-
-        this.imgs[alt] = L.DomUtil.create('img', legendClassName, this.container);
+        // set in a div to align vertically
+        var div = L.DomUtil.create('div', '', this.container);
+        this.imgs[alt] = L.DomUtil.create('img', legendClassName, div);
         this.imgs[alt].src = uri;
         this.imgs[alt].alt = alt;
 
-//        L.DomEvent
-//                .on(this.imgs[alt], 'click', this._click, this)
-//                .on(this.imgs[alt], 'mousedown', stop)
-//                .on(this.imgs[alt], 'dblclick', stop)
-//                .on(this.imgs[alt], 'click', L.DomEvent.preventDefault)
-//                .on(this.imgs[alt], 'click', stop);
-    },
-    _click: function (e) {
-        L.DomEvent.stopPropagation(e);
-        L.DomEvent.preventDefault(e);
-        // toggle legend visibility
-        if (this.visible) {
-            this.container.style.height = this.height + 'px';
-            this.container.style.width = this.width + 'px';
-        } else {
-            if (this.width === null && this.height === null) {
-                // Only do inside the above check to prevent the container
-                // growing on successive uses
-                this.height = this.container.offsetHeight;
-                this.width = this.container.offsetWidth;
-            }
-            this.container.style.height = '20px';
-            this.container.style.width = '20px';
-        }
-        this.visible = !this.visible;
     }
 });
 
