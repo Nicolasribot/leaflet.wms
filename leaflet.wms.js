@@ -35,8 +35,9 @@ var wms = {};
 wms.Source = L.Layer.extend({
     'options': {
         'tiled': false,
-        'identify': false ,
-        'legend': true, // onclick layer event is getLegendGraphics
+        'layersControl': true,
+        'identify': true ,
+        'legend': false, // onclick layer event is getLegendGraphics
 //        'automws': true, // loads layers from wms service
 //        'layersControl': true, // display a forked leaflet-iconLayers control
         'info_format': 'text/html',
@@ -90,13 +91,37 @@ wms.Source = L.Layer.extend({
     'getLayer': function(name) {
         return wms.layer(this, name);
     },
+    
+    'getLayerIcon': function(name) {
+        return 'icon.png';
+    },
+    
+    'getLayersForControl' : function () {
+        // returns array of sublayers object suitable for iconLayers control:
+        // option, title, layer
+        var ret = [];
+        if (this._subLayers) {
+            console.log('getLayersForControl: sublayers to build: ');
+            for (var ln in this._subLayers) {
+                var obj = {
+                    'title': ln,
+                    'icon': this.getLayerIcon(ln), 
+                    'layer': this.getLayer(ln)
+                };
+                ret.push(obj);
+            }
+        }
+        return ret;
+    },
 
     'addSubLayer': function(name) {
+//        console.log('addSubLayer, param: ' + name);
         this._subLayers[name] = true;
         this.refreshOverlay();
     },
 
     'removeSubLayer': function(name) {
+//        console.log('deleteSubLayer, param: ' + name);
         delete this._subLayers[name];
         this.refreshOverlay();
     },
@@ -134,7 +159,7 @@ wms.Source = L.Layer.extend({
         // behavior, create a class extending wms.Source and override one or
         // more of the following hook functions.
 
-        var layers = this.getIdentifyLayers();
+        var layers = this.getLegendLayers();
         if (!layers.length) {
             return;
         }
@@ -170,14 +195,20 @@ wms.Source = L.Layer.extend({
     },
 
     'ajax': function(url, callback) {
-//        ajax.call(this, url, callback);
-        ajaxJQ.call(this, url, callback);
+        ajax.call(this, url, callback);
     },
 
     'getIdentifyLayers': function() {
         // Hook to determine which layers to identify
         if (this.options.identifyLayers)
             return this.options.identifyLayers;
+        return Object.keys(this._subLayers);
+     },
+
+    'getLegendLayers': function() {
+        // Hook to determine which layers to legend
+        if (this.options.legendLayers)
+            return this.options.legendLayers;
         return Object.keys(this._subLayers);
      },
 
@@ -222,8 +253,7 @@ wms.Source = L.Layer.extend({
         // replaces format with info_format parameter
         var legendParams = {
             'request': 'GetLegendGraphics',
-            'format': this.options.legend_format,
-            'layer': layers.join(',')
+            'format': this.options.legend_format
         };
         return L.extend({}, wmsParams, legendParams);
     },
@@ -499,26 +529,7 @@ function ajax(url, callback) {
     }
 }
 
-// JQuery version to cope with cors issues
-function ajaxJQ(url, callback) {
-    var context = this;
-    
-    $.ajax({
-            'url': url,
-            type: "GET",
-            crossDomain: true,
-//            dataType: "json",
-            success: function (response) {
-                callback.call(context, response.responseText)
-//                alert(resp.status);
-            },
-            error: function (xhr, status) {
-                callback.call(context, status);
-                //alert(status);
-            }
-        });
-}
-
 return wms;
 
 }));
+

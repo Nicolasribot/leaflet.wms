@@ -1,11 +1,12 @@
 requirejs.config({
     'baseUrl': '../lib',
     'paths': {
-        'leaflet.wms': '../leaflet.wms' //.js'
+        'leaflet.wms': '../leaflet.wms', //.js'
+        'iconlayers': '../tmp/iconLayers'
     }
 });
 
-define(['leaflet', 'leaflet.wms'],
+define(['leaflet', 'leaflet.wms', 'iconlayers'],
 function(L, wms) {
 
 var autowmsMap = '';
@@ -59,7 +60,8 @@ function createMap(div, tiled, autowms) {
         );
 
         var layers = {
-            'Time Zones': source.getLayer("Sous Bassins")
+            'Sous Bassins': source.getLayer("Sous Bassins"),
+            'Parcs Nationaux': source.getLayer("Parcs Nationaux")
 //            ,'Lakes & Rivers': source.getLayer("lakesrivers"),
 //            'Airports': source.getLayer("airports"),
 //            'State Capitals': source.getLayer("statecap")
@@ -69,13 +71,32 @@ function createMap(div, tiled, autowms) {
         }
 
         // Create layer control
-        L.control.layers(basemaps, layers).addTo(map);
+        //L.control.layers(basemaps, layers).addTo(map);
+        L.control.iconLayers(source.getLayersForControl()).addTo(map);
 
         // Opacity slider
         var slider = L.DomUtil.get('range-' + div);
         L.DomEvent.addListener(slider, 'change', function() {
             source.setOpacity(this.value);
         });
+
+        // legend/info radio
+        var r1 = L.DomUtil.get('info-' + div);
+        L.DomEvent.addListener(r1, 'click', radioClick);
+        var r2 = L.DomUtil.get('legend-' + div);
+        L.DomEvent.addListener(r2, 'click', radioClick);
+        
+        function radioClick(evt) {
+            if (this.value === '1') {
+                source.options.identify = true;
+                source.options.legend = false;
+            } else if (this.value === '2') {
+                source.options.identify = false;
+                source.options.legend = true;
+                console.log(source.options);
+            }
+            source.getEvents();
+        };
 
     }
     return map;

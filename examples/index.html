@@ -2,8 +2,12 @@
 <html>
   <head>
     <title>leaflet.wms Examples</title>
-    <script src="https://code.jquery.com/jquery-2.2.3.js"></script>
+    
+    <!--TODO: GIT URLs for this page, not relative links-->
     <script src="../lib/require.js" data-main="app"></script>
+    <link rel="stylesheet" type="text/css" href="../tmp/iconLayers.css">
+    <script src="../lib/leaflet.js"></script>
+    <script src="../tmp/iconLayers.js"></script>
     <link rel="stylesheet" type="text/css" href="../lib/leaflet.css">
     <style>
       body {
@@ -28,13 +32,17 @@
     <h3>(new) Auto WMS Layers</h3>
     <p>Click the map to trigger a getFeatureInfo on features</p>
     <div id="autowms-map"></div>
+    
     <h3>Overlay ("Single-Tile"/Untiled Mode)</h3>
     <p>Click the map to get information about the underlying data.</p>
     <form>
       <label for="range-overlay-map">Opacity</label>
       <input id="range-overlay-map" type="range" min=0 max=1 step=0.1 value=1>
+      <input type="radio" name="group1" id="info-overlay-map" value="1" /><label for="info-overlay-map"> Info</label>
+      <input type="radio" name="group1" id="legend-overlay-map" value="2" /><label for="legend-overlay-map"> Legend</label>
     </form>
     <div id="overlay-map"></div>
+    
     <h3>Tiled Layer</h3>
     <p>Click the map to get information about the underlying data.</p>
     <form>
