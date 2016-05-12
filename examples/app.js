@@ -8,9 +8,13 @@ requirejs.config({
 define(['leaflet', 'leaflet.wms'],
 function(L, wms) {
 
-var autowmsMap = createMap('autowms-map', false, true);
-var overlayMap = createMap('overlay-map', false, false);
-var tiledMap = createMap('tiled-map', true, false);
+var autowmsMap = '';
+var tiledMap = '';
+var overlayMap = '';
+
+//autowmsMap = createMap('autowms-map', false, true);
+overlayMap = createMap('overlay-map', false, false);
+//tiledMap = createMap('tiled-map', true, false);
 
 function createMap(div, tiled, autowms) {
     // Map configuration

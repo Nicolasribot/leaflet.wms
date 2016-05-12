@@ -35,8 +35,13 @@ var wms = {};
 wms.Source = L.Layer.extend({
     'options': {
         'tiled': false,
-        'identify': true, 
-        
+        'identify': false ,
+        'legend': true, // onclick layer event is getLegendGraphics
+//        'automws': true, // loads layers from wms service
+//        'layersControl': true, // display a forked leaflet-iconLayers control
+        'info_format': 'text/html',
+        'legend_format': 'image/png'
+//        'feature_count': 10
     },
 
     'initialize': function(url, options) {
@@ -50,7 +55,7 @@ wms.Source = L.Layer.extend({
         // Create overlay with all options other than tiled & identify
         var overlayOptions = {};
         for (var opt in this.options) {
-            if (opt != 'tiled' && opt != 'identify') {
+            if (opt != 'tiled' && opt != 'identify' && opt != 'info_format') {
                 overlayOptions[opt] = this.options[opt];
             }
         }
@@ -68,6 +73,8 @@ wms.Source = L.Layer.extend({
     'getEvents': function() {
         if (this.options.identify) {
             return {'click': this.identify};
+        } else if (this.options.legend) {
+            return {'click': this.legend};
         } else {
             return {};
         }
@@ -122,11 +129,26 @@ wms.Source = L.Layer.extend({
         );
     },
 
+    'legend': function(evt) {
+        // shows layers legends in response to map clicks. To customize this
+        // behavior, create a class extending wms.Source and override one or
+        // more of the following hook functions.
+
+        var layers = this.getIdentifyLayers();
+        if (!layers.length) {
+            return;
+        }
+        this.getLegendGraphics(
+            evt.containerPoint, evt.latlng, layers,
+            this.showLegendGraphics
+        );
+    },
+
     'getFeatureInfo': function(point, latlng, layers, callback) {
         // Request WMS GetFeatureInfo and call callback with results
         // (split from identify() to faciliate use outside of map events)
-        var params = this.getFeatureInfoParams(point, layers),
-            url = this._url + L.Util.getParamString(params, this._url);
+        var params = this.getFeatureInfoParams(point, layers), 
+                url = this._url + L.Util.getParamString(params, this._url);
 
         this.showWaiting();
         this.ajax(url, done);
@@ -138,8 +160,18 @@ wms.Source = L.Layer.extend({
         }
     },
 
+    'getLegendGraphics': function(point, latlng, layers, callback) {
+        // Request WMS GetLegendGraphics and call callback with Image URL 
+        // (split from legend() to faciliate use outside of map events)
+        var params = this.getLegendGraphicsParams(point, layers), 
+                url = this._url + L.Util.getParamString(params, this._url);
+
+        callback.call(this, latlng, url);
+    },
+
     'ajax': function(url, callback) {
-        ajax.call(this, url, callback);
+//        ajax.call(this, url, callback);
+        ajaxJQ.call(this, url, callback);
     },
 
     'getIdentifyLayers': function() {
@@ -162,8 +194,10 @@ wms.Source = L.Layer.extend({
             // Use existing overlay
             wmsParams = this._overlay.wmsParams;
         }
+        // replaces format with info_format parameter
         var infoParams = {
             'request': 'GetFeatureInfo',
+            'info_format': this.options.info_format,
             'query_layers': layers.join(','),
             'X': Math.round(point.x),
             'Y': Math.round(point.y)
@@ -171,12 +205,35 @@ wms.Source = L.Layer.extend({
         return L.extend({}, wmsParams, infoParams);
     },
 
+    // TODO: factorize once auto mode is hooked in
+    'getLegendGraphicsParams': function(point, layers) {
+        // Hook to generate parameters for WMS service GetLegendGraphics request
+        var wmsParams, overlay;
+        if (this.options.tiled) {
+            // Create overlay instance to leverage updateWmsParams
+            overlay = this.createOverlay();
+            overlay.updateWmsParams(this._map);
+            wmsParams = overlay.wmsParams;
+            wmsParams.layers = layers.join(',');
+        } else {
+            // Use existing overlay
+            wmsParams = this._overlay.wmsParams;
+        }
+        // replaces format with info_format parameter
+        var legendParams = {
+            'request': 'GetLegendGraphics',
+            'format': this.options.legend_format,
+            'layer': layers.join(',')
+        };
+        return L.extend({}, wmsParams, legendParams);
+    },
+
     'parseFeatureInfo': function(result, url) {
         // Hook to handle parsing AJAX response
         if (result == "error") {
             // AJAX failed, possibly due to CORS issues.
             // Try loading content in <iframe>.
-            result = "<iframe src='" + url + "' style='border:none'>";
+            result = "<iframe id='fiframe'  src='" + url + "' style='border:none'>";
         }
         return result;
     },
@@ -187,6 +244,19 @@ wms.Source = L.Layer.extend({
             return;
         }
         this._map.openPopup(info, latlng);
+    },
+
+    // TODO: style popup
+    'showLegendGraphics': function(latlng, legendURL) {
+        // Hook to handle displaying parsed AJAX response to the user
+        if (!this._map) {
+            return;
+        }
+        // creates an image for the legend url
+        var img = L.DomUtil.create('img', 'leaflet-wms-legend');
+        img.src = legendURL;
+        
+        this._map.openPopup(img, latlng);
     },
 
     'showWaiting': function() {
@@ -424,6 +494,26 @@ function ajax(url, callback) {
             }
         }
     }
+}
+
+// JQuery version to cope with cors issues
+function ajaxJQ(url, callback) {
+    var context = this;
+    
+    $.ajax({
+            'url': url,
+            type: "GET",
+            crossDomain: true,
+//            dataType: "json",
+            success: function (response) {
+                callback.call(context, response.responseText)
+//                alert(resp.status);
+            },
+            error: function (xhr, status) {
+                callback.call(context, status);
+                //alert(status);
+            }
+        });
 }
 
 return wms;
