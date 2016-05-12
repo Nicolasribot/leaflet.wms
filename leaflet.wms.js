@@ -35,14 +35,12 @@ var wms = {};
 wms.Source = L.Layer.extend({
     'options': {
         'tiled': false,
-        'layersControl': true,
-        'identify': true ,
-        'legend': false, // onclick layer event is getLegendGraphics
-//        'automws': true, // loads layers from wms service
-//        'layersControl': true, // display a forked leaflet-iconLayers control
+        'identify': false ,
+        'legend': true, // onclick layer event is getLegendGraphics
+        'autowms': true, // loads layers from wms service. Exception in case of CORS restriction
         'info_format': 'text/html',
-        'legend_format': 'image/png'
-//        'feature_count': 10
+        'legend_format': 'image/png',
+        'feature_count': 10
     },
 
     'initialize': function(url, options) {
@@ -50,13 +48,18 @@ wms.Source = L.Layer.extend({
         this._url = url;
         this._subLayers = {};
         this._overlay = this.createOverlay(this.options.tiled);
+        
+        // Auto WMS loading
+        this.loadFromWMS();
     },
 
     'createOverlay': function(tiled) {
         // Create overlay with all options other than tiled & identify
         var overlayOptions = {};
         for (var opt in this.options) {
-            if (opt != 'tiled' && opt != 'identify' && opt != 'info_format') {
+            if (opt != 'tiled' && opt != 'identify' && opt != 'info_format'
+                && opt != 'legend' && opt != 'legend_format' && opt != 'autowms' 
+                && opt != 'feature_count') {
                 overlayOptions[opt] = this.options[opt];
             }
         }
@@ -69,6 +72,7 @@ wms.Source = L.Layer.extend({
 
     'onAdd': function() {
         this.refreshOverlay();
+        console.log();
     },
 
     'getEvents': function() {
@@ -93,7 +97,33 @@ wms.Source = L.Layer.extend({
     },
     
     'getLayerIcon': function(name) {
-        return 'icon.png';
+        // returns URL icon for this layer: the layer image, reduced to icon size.
+        // get layer bbox if any in getCapabilities
+        var u = '';
+        if (this._capabilities) {
+            u = this._wmsLayers[name].iconURL;
+            console.log(u);
+        } else {
+            // todo: factorize WMS url building from params
+            var uppercase = this.options.uppercase || false;
+            var params = L.extend({}, this._overlay.wmsParams);
+            // changes size
+            params.width = 80;
+            params.height = 80;
+            console.log(params);
+            var pstr = L.Util.getParamString(params, this._url, uppercase);
+            u = this._url + pstr;
+            console.log(u);
+        }
+        
+        return u;
+    },
+    
+    'getLayerLegendURL': function(name) {
+        // returns URL legend for this layer
+        var params = this.getLegendGraphicsParams([name], true);
+        // change image image
+        return this._url + L.Util.getParamString(params, this._url);
     },
     
     'getLayersForControl' : function () {
@@ -106,7 +136,11 @@ wms.Source = L.Layer.extend({
                 var obj = {
                     'title': ln,
                     'icon': this.getLayerIcon(ln), 
-                    'layer': this.getLayer(ln)
+                    'layer': this.getLayer(ln),
+                    'options' : {
+                        'info': '',
+                        'legend': this.getLayerLegendURL(ln)
+                    }
                 };
                 ret.push(obj);
             }
@@ -163,8 +197,7 @@ wms.Source = L.Layer.extend({
         if (!layers.length) {
             return;
         }
-        this.getLegendGraphics(
-            evt.containerPoint, evt.latlng, layers,
+        this.getLegendGraphics(evt.latlng, layers,
             this.showLegendGraphics
         );
     },
@@ -185,13 +218,46 @@ wms.Source = L.Layer.extend({
         }
     },
 
-    'getLegendGraphics': function(point, latlng, layers, callback) {
+    'getLegendGraphics': function(latlng, layers, callback) {
         // Request WMS GetLegendGraphics and call callback with Image URL 
         // (split from legend() to faciliate use outside of map events)
-        var params = this.getLegendGraphicsParams(point, layers), 
-                url = this._url + L.Util.getParamString(params, this._url);
+        // 
+        var url = [];
+        if (this._capabilities) {
+            for (var l in this._wmsLayers) {
+                url.push(this._wmsLayers[l].legendURL);
+            }
+        } else {
+            var params = this.getLegendGraphicsParams(layers, false);
+            url = [this._url + L.Util.getParamString(params, this._url)];
+        }
 
         callback.call(this, latlng, url);
+    },
+
+    'getCapabilities': function(layers, callback) {
+        // Request WMS GetCapabilities and call callback with results capa jSON object
+        // (split to faciliate use outside of map events)
+                // returns URL icone for this layer: the layer image, reduced to icon size
+        var uppercase = this.options.uppercase || false;
+        // TODO: 
+        var params = {
+            request : 'GetCapabilities',
+            service: 'WMS',
+            version: this._overlay.wmsParams.version
+        };
+        console.log(params);
+        var url = this._url + L.Util.getParamString(params, this._url, uppercase);
+//        console.log(url);
+
+        this.showWaiting();
+        this.ajax(url, done);
+
+        function done(result) {
+            this.hideWaiting();
+            var capa = this.parseCapabilities(result, url);
+            callback.call(this, capa);
+        }
     },
 
     'ajax': function(url, callback) {
@@ -237,7 +303,7 @@ wms.Source = L.Layer.extend({
     },
 
     // TODO: factorize once auto mode is hooked in
-    'getLegendGraphicsParams': function(point, layers) {
+    'getLegendGraphicsParams': function(layers, filter) {
         // Hook to generate parameters for WMS service GetLegendGraphics request
         var wmsParams, overlay;
         if (this.options.tiled) {
@@ -249,6 +315,11 @@ wms.Source = L.Layer.extend({
         } else {
             // Use existing overlay
             wmsParams = this._overlay.wmsParams;
+        }
+        //filters list of layers if requested, based on current list of layers
+        // TODO: check
+        if (filter) {
+            wmsParams.layers = layers.join(',');
         }
         // replaces format with info_format parameter
         var legendParams = {
@@ -268,6 +339,20 @@ wms.Source = L.Layer.extend({
         return result;
     },
 
+    'parseCapabilities': function(result, url) {
+        // Hook to handle parsing AJAX response
+        if (result == "error") {
+            // AJAX failed, possibly due to CORS issues.
+            // Try loading content in <iframe>.
+            result = "<iframe id='fiframe'  src='" + url + "' style='border:none'>";
+            alert('Cannot get capabilities from: ' + url + '\nresult: ' + result);
+            if (this._map) {
+                this._map.openPopup(result);
+            }
+        }
+        return result;
+    },
+
     'showFeatureInfo': function(latlng, info) {
         // Hook to handle displaying parsed AJAX response to the user
         if (!this._map) {
@@ -281,11 +366,15 @@ wms.Source = L.Layer.extend({
         if (!this._map) {
             return;
         }
-        // creates an image for the legend url
-        var img = L.DomUtil.create('img', 'leaflet-wms-legend');
-        img.src = legendURL;
+        // creates images for the legend url array
+        var divLegend = L.DomUtil.create('div', 'leaflet-wms-legend');
+        for (var i = 0; i < legendURL.length; i++) {
+            var div = L.DomUtil.create('div', '', divLegend);
+            var img = L.DomUtil.create('img', 'leaflet-wms-legend', div);
+            img.src = legendURL[i];
+        }
         
-        this._map.openPopup(img, latlng, {
+        this._map.openPopup(divLegend, latlng, {
             maxHeight: 100,
             autoPan: false,
             keepInView: true
@@ -304,6 +393,85 @@ wms.Source = L.Layer.extend({
         if (!this._map)
             return;
         this._map._container.style.cursor = "default";
+    },
+    // tries to load a getCapabilities document to read layers info from.
+    'loadFromWMS': function () {
+        console.log(this.options);
+        if (this.options.autowms !== true) {
+            console.log('autowms NOT enabled...');
+            return;
+        }
+        console.log('autowms enabled !');
+        var WMSCapabilities = require('wms-capabilities');
+        this.getCapabilities(null, done);
+        
+        function done(capa) {
+//            console.log(capa);
+            var uppercase = this.options.uppercase || false;
+            var crs = this.options.crs || this._map.options.crs;
+            
+            this._capabilities = new WMSCapabilities().parse(capa);
+            console.log(this._capabilities);
+            // adds a list of wmslayers with useful properties
+            this._wmsLayers = {};
+            // copies the overlay options to be able to build custom URL for found wmslayers:
+            var params = this.wmsParams = L.extend({}, this._overlay.wmsParams);
+            // sets main WMS params now we can read them from server:
+            console.log(params);
+            this._overlay.wmsParams.version = this._capabilities.version;
+            
+            // reads image format: takes first available format in array
+            // TODO: bug with qgis WMS server advertized image/jpeg but crashes with it
+            // uses user-defined option if available
+            if (!this.options.format) {
+                this._overlay.wmsParams.format = this._capabilities.Capability.Request.GetMap.Format[0];
+            } else {
+                console.log('user format to user:' + this.options.format);
+                this._overlay.wmsParams.format = this.options.format;
+            }
+            
+            // reads legend_format: takes first found
+            // TODO: one legend_format per legendGraphics available or getXXX methods to access the _capabilities object ?
+            this.legend_format = this._capabilities.Capability.Layer.Layer[0].Style[0].LegendURL[0].Format;
+
+            // reads info_format: 
+            if (this._capabilities.Capability.Request.GetFeatureInfo.Format.indexOf('text/html') >= 0) {
+                this.legend_format = 'text/html';
+            } else {
+                //takes first available
+                this.legend_format = this._capabilities.Capability.Request.GetFeatureInfo.Format[0];
+            }
+            
+            for (i = 0; i < this._capabilities.Capability.Layer.Layer.length; i++) {
+                var l = this._capabilities.Capability.Layer.Layer[i];
+                // TODO: stores legendURL and iconURL built from capa
+                this._subLayers[l.Name]= true;
+                params.layers = l.Name;
+                // find layers bbox for configured srs and sets it to overload params
+                for (var j = 0; j < l.BoundingBox.length; j++) {
+                    if (l.BoundingBox[j].crs === crs.code) {
+                        console.log('found');
+                        params.bbox = l.BoundingBox[j].extent.join(',');
+                        break;
+                    }
+                }
+                // builds MapURL for icon, with custom bbox if any
+                // TODO: from config/factorize.
+                params.width = 80;
+                params.height = 80;
+                var url = this._url + L.Util.getParamString(params, this._url, uppercase);
+                
+                var props = {
+                    'legendURL': l.Style[0].LegendURL[0].OnlineResource,
+                    'iconURL': url
+                };
+                
+                this._wmsLayers[l.Name] = props;
+//                console.log(l);
+            }
+            this.refreshOverlay();
+//            console.log('Done getcapa');
+        };
     }
 });
 
@@ -374,7 +542,7 @@ wms.Overlay = L.Layer.extend({
         'layers': '',
         'styles': '',
         'format': 'image/jpeg',
-        'transparent': false
+        'transparent': true
     },
 
     'options': {

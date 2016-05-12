@@ -1,21 +1,21 @@
 requirejs.config({
     'baseUrl': '../lib',
     'paths': {
-        'leaflet.wms': '../leaflet.wms', //.js'
-        'iconlayers': '../tmp/iconLayers',
-        'configBuilder': '../tmp/configBuilder'
+        'leaflet.wms': '../leaflet.wms',
+        'iconlayers': '/leafleticonlayers/src/iconLayers',
+        'wms-capabilities': '/leafletwms/wms-capabilities'
     }
 });
 
-define(['leaflet', 'leaflet.wms', 'iconlayers', 'configBuilder'],
+define(['leaflet', 'leaflet.wms', 'iconlayers', 'wms-capabilities'],
 function(L, wms) {
 
 var autowmsMap = '';
 var tiledMap = '';
 var overlayMap = '';
 
-//autowmsMap = createMap('autowms-map', false, true);
-overlayMap = createMap('overlay-map', false, false);
+autowmsMap = createMap('autowms-map', false, true);
+//overlayMap = createMap('overlay-map', false, false);
 //tiledMap = createMap('tiled-map', true, false);
 
 function createMap(div, tiled, autowms) {
@@ -35,18 +35,24 @@ function createMap(div, tiled, autowms) {
         var source = wms.source(
             "http://localhost/qgis/qgis_mapserv.fcgi?map=/Users/nicolas/Projets/smage/demo/web/QGIS-Web-Client-master/projets_qgis/appli_smage.qgs",
             {
-                "tiled": tiled,
-                // new options
-                'automws': true, // loads layers from wms service
-                'layersControl': true, // display a forked leaflet-iconLayers control
-                'info_format': 'text/html',
-                'legend_format': 'image/png',
-                'feature_count': 10
-            }        
+                'autowms': true,
+                'format': 'image/png'
+            }
         );
 
         // adds source to map
         source.addTo(map);
+        // plug event onload to do things with layer
+        source._overlay.on('add', function() {
+            L.control.iconLayers(source.getLayersForControl()).addTo(map);
+        } );
+        
+        // Opacity slider
+        var slider = L.DomUtil.get('range-' + div);
+        L.DomEvent.addListener(slider, 'change', function() {
+            source.setOpacity(this.value);
+        });
+
         
     } else {
         var source = wms.source(
@@ -73,10 +79,11 @@ function createMap(div, tiled, autowms) {
 
         // Create layer control
         //L.control.layers(basemaps, layers).addTo(map);
-        L.control.iconLayers(
-                IconLayersConfigBuilder.buildFromWMSSource(source)
+//        L.control.iconLayers(
+//                IconLayersConfigBuilder.buildFromWMSSource(source)
+//                ).addTo(map);
+        L.control.iconLayers(source.getLayersForControl()
                 ).addTo(map);
-        L.control.iconLayers(source).addTo(map);
 
         // Opacity slider
         var slider = L.DomUtil.get('range-' + div);
@@ -94,14 +101,15 @@ function createMap(div, tiled, autowms) {
             if (this.value === '1') {
                 source.options.identify = true;
                 source.options.legend = false;
+                L.DomUtil.get('imglegend').src = '';
             } else if (this.value === '2') {
                 source.options.identify = false;
                 source.options.legend = true;
                 console.log(source.options);
+                L.DomUtil.get('imglegend').src = source.getLayerLegendURL('Sous Bassins');
             }
             source.getEvents();
         };
-
     }
     return map;
 }

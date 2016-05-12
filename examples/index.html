@@ -5,10 +5,8 @@
     
     <!--TODO: GIT URLs for this page, not relative links-->
     <script src="../lib/require.js" data-main="app"></script>
-    <link rel="stylesheet" type="text/css" href="../tmp/iconLayers.css">
+    <link rel="stylesheet" type="text/css" href="/leafleticonlayers/src/iconLayers.css">
     <script src="../lib/leaflet.js"></script>
-    <script src="../tmp/iconLayers.js"></script>
-    <script src="../tmp/"></script>
     <link rel="stylesheet" type="text/css" href="../lib/leaflet.css">
     <style>
       body {
@@ -32,6 +30,10 @@
       
     <h3>(new) Auto WMS Layers</h3>
     <p>Click the map to trigger a getFeatureInfo on features</p>
+    <form>
+      <label for="range-autowms-map">Opacity</label>
+      <input id="range-autowms-map" type="range" min=0 max=1 step=0.1 value=1>
+    </form>
     <div id="autowms-map"></div>
     
     <h3>Overlay ("Single-Tile"/Untiled Mode)</h3>
@@ -42,6 +44,7 @@
       <input type="radio" name="group1" id="info-overlay-map" value="1" /><label for="info-overlay-map"> Info</label>
       <input type="radio" name="group1" id="legend-overlay-map" value="2" /><label for="legend-overlay-map"> Legend</label>
     </form>
+    <img id='imglegend' src=""/>
     <div id="overlay-map"></div>
     
     <h3>Tiled Layer</h3>
