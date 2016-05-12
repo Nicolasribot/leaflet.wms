@@ -2,11 +2,12 @@ requirejs.config({
     'baseUrl': '../lib',
     'paths': {
         'leaflet.wms': '../leaflet.wms', //.js'
-        'iconlayers': '../tmp/iconLayers'
+        'iconlayers': '../tmp/iconLayers',
+        'configBuilder': '../tmp/configBuilder'
     }
 });
 
-define(['leaflet', 'leaflet.wms', 'iconlayers'],
+define(['leaflet', 'leaflet.wms', 'iconlayers', 'configBuilder'],
 function(L, wms) {
 
 var autowmsMap = '';
@@ -24,7 +25,7 @@ function createMap(div, tiled, autowms) {
     map.setView([44.0, 4.4], 8);
 
     var basemaps = {
-        'Basemap': basemap().addTo(map) ,
+        'Basemap': basemap().addTo(map),
         'Blank': blank()
     };
     
@@ -72,7 +73,10 @@ function createMap(div, tiled, autowms) {
 
         // Create layer control
         //L.control.layers(basemaps, layers).addTo(map);
-        L.control.iconLayers(source.getLayersForControl()).addTo(map);
+        L.control.iconLayers(
+                IconLayersConfigBuilder.buildFromWMSSource(source)
+                ).addTo(map);
+        L.control.iconLayers(source).addTo(map);
 
         // Opacity slider
         var slider = L.DomUtil.get('range-' + div);
