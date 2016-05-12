@@ -246,7 +246,6 @@ wms.Source = L.Layer.extend({
         this._map.openPopup(info, latlng);
     },
 
-    // TODO: style popup
     'showLegendGraphics': function(latlng, legendURL) {
         // Hook to handle displaying parsed AJAX response to the user
         if (!this._map) {
@@ -256,7 +255,11 @@ wms.Source = L.Layer.extend({
         var img = L.DomUtil.create('img', 'leaflet-wms-legend');
         img.src = legendURL;
         
-        this._map.openPopup(img, latlng);
+        this._map.openPopup(img, latlng, {
+            maxHeight: 100,
+            autoPan: false,
+            keepInView: true
+        });
     },
 
     'showWaiting': function() {
