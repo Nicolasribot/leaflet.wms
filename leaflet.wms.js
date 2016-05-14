@@ -48,9 +48,6 @@ wms.Source = L.Layer.extend({
         this._url = url;
         this._subLayers = {};
         this._overlay = this.createOverlay(this.options.tiled);
-        
-        // Auto WMS loading
-        this.loadFromWMS();
     },
 
     'createOverlay': function(tiled) {
@@ -395,14 +392,13 @@ wms.Source = L.Layer.extend({
         this._map._container.style.cursor = "default";
     },
     // tries to load a getCapabilities document to read layers info from.
-    'loadFromWMS': function () {
+    'loadFromWMS': function (callback) {
         console.log(this.options);
         if (this.options.autowms !== true) {
             console.log('autowms NOT enabled...');
             return;
         }
         console.log('autowms enabled !');
-        var WMSCapabilities = require('wms-capabilities');
         this.getCapabilities(null, done);
         
         function done(capa) {
@@ -411,6 +407,7 @@ wms.Source = L.Layer.extend({
             var crs = this.options.crs || this._map.options.crs;
             
             this._capabilities = new WMSCapabilities().parse(capa);
+//            this._capabilities = new WMSCapabilities(capa).toJSON();;
             console.log(this._capabilities);
             // adds a list of wmslayers with useful properties
             this._wmsLayers = {};
@@ -419,7 +416,7 @@ wms.Source = L.Layer.extend({
             // sets main WMS params now we can read them from server:
             console.log(params);
             this._overlay.wmsParams.version = this._capabilities.version;
-            
+
             // reads image format: takes first available format in array
             // TODO: bug with qgis WMS server advertized image/jpeg but crashes with it
             // uses user-defined option if available
@@ -429,7 +426,7 @@ wms.Source = L.Layer.extend({
                 console.log('user format to user:' + this.options.format);
                 this._overlay.wmsParams.format = this.options.format;
             }
-            
+
             // reads legend_format: takes first found
             // TODO: one legend_format per legendGraphics available or getXXX methods to access the _capabilities object ?
             this.legend_format = this._capabilities.Capability.Layer.Layer[0].Style[0].LegendURL[0].Format;
@@ -441,7 +438,7 @@ wms.Source = L.Layer.extend({
                 //takes first available
                 this.legend_format = this._capabilities.Capability.Request.GetFeatureInfo.Format[0];
             }
-            
+
             for (i = 0; i < this._capabilities.Capability.Layer.Layer.length; i++) {
                 var l = this._capabilities.Capability.Layer.Layer[i];
                 // TODO: stores legendURL and iconURL built from capa
@@ -460,16 +457,17 @@ wms.Source = L.Layer.extend({
                 params.width = 80;
                 params.height = 80;
                 var url = this._url + L.Util.getParamString(params, this._url, uppercase);
-                
+
                 var props = {
                     'legendURL': l.Style[0].LegendURL[0].OnlineResource,
                     'iconURL': url
                 };
-                
+
                 this._wmsLayers[l.Name] = props;
 //                console.log(l);
             }
             this.refreshOverlay();
+            callback.call(this);
 //            console.log('Done getcapa');
         };
     }

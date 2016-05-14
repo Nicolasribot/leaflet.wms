@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>leaflet.wms Examples</title>
+
+        <link rel="stylesheet" type="text/css" href="../lib/leaflet.css">
+        <link rel="stylesheet" type="text/css" href="/leafleticonlayers/src/iconLayers.css">
+        <link rel="stylesheet" type="text/css" href="../leaflet.wms.css">
+
+        <!--TODO: GIT URLs for this page, not relative links-->
+        <script src="../lib/leaflet.js" ></script>
+        <script src="/leafleticonlayers/src/iconLayers.js" ></script>
+        <script src="/leafleticonlayers/src/configBuilder.js" ></script>
+        <script src="../leaflet.wms.js"></script>
+        <script src="../wms-capabilities.js"></script>
+        <style>
+            body {
+                background-color: #eee;
+                font-family: sans-serif;
+            }
+            .leaflet-container {
+                background-color: #fff;
+                height: 400px;
+                margin: 1em;
+                border: 1px solid #999;
+            }
+        </style>
+        <script>
+            var autowmsMap = '';
+            var tiledMap = '';
+            var overlayMap = '';
+
+            function load() {
+                autowmsMap = createMap('autowms-map', false, true);
+                //overlayMap = createMap('overlay-map', false, false);
+                //tiledMap = createMap('tiled-map', true, false);
+            }
+
+            function createMap(div, tiled, autowms) {
+                // Map configuration
+                var map = L.map(div);
+                map.setView([44.0, 4.4], 8);
+
+
+                var basemaps = {
+                    'Basemap': basemap().addTo(map),
+                    'Blank': blank()
+                };
+
+                if (autowms) {
+                    // Test autowms mode: Adds only a WMS service URL
+                    // Add WMS source/layers
+                    var source = L.WMS.source(
+                            "http://localhost/qgis/qgis_mapserv.fcgi?map=/Users/nicolas/Projets/smage/demo/web/QGIS-Web-Client-master/projets_qgis/appli_smage.qgs",
+                            {
+                                'autowms': true,
+                                'format': 'image/png'
+                            }
+                    ).addTo(map).loadFromWMS(function () {
+                        L.control.iconLayers(this.getLayersForControl()).addTo(map);
+                    });
+
+                    // Opacity slider
+                    var slider = L.DomUtil.get('range-' + div);
+                    L.DomEvent.addListener(slider, 'change', function () {
+                        source.setOpacity(this.value);
+                    });
+
+
+                } else {
+                    var source = wms.source(
+                            //            "http://webservices.nationalatlas.gov/wms",
+                            "http://localhost/qgis/qgis_mapserv.fcgi?map=/Users/nicolas/Projets/smage/demo/web/QGIS-Web-Client-master/projets_qgis/appli_smage.qgs",
+                            {
+                                "format": "image/png",
+                                "transparent": "true",
+                                "attribution": "<a href='#'>Nico wms</a>",
+                                "tiled": tiled
+                            }
+                    );
+
+                    var layers = {
+                        'Sous Bassins': source.getLayer("Sous Bassins"),
+                        'Parcs Nationaux': source.getLayer("Parcs Nationaux")
+                                //            ,'Lakes & Rivers': source.getLayer("lakesrivers"),
+                                //            'Airports': source.getLayer("airports"),
+                                //            'State Capitals': source.getLayer("statecap")
+                    };
+                    for (var name in layers) {
+                        layers[name].addTo(map);
+                    }
+
+                    // Create layer control
+                    //L.control.layers(basemaps, layers).addTo(map);
+                    //        L.control.iconLayers(
+                    //                IconLayersConfigBuilder.buildFromWMSSource(source)
+                    //                ).addTo(map);
+                    L.control.iconLayers(source.getLayersForControl()
+                            ).addTo(map);
+
+                    // Opacity slider
+                    var slider = L.DomUtil.get('range-' + div);
+                    L.DomEvent.addListener(slider, 'change', function () {
+                        source.setOpacity(this.value);
+                    });
+
+                    // legend/info radio
+                    var r1 = L.DomUtil.get('info-' + div);
+                    L.DomEvent.addListener(r1, 'click', radioClick);
+                    var r2 = L.DomUtil.get('legend-' + div);
+                    L.DomEvent.addListener(r2, 'click', radioClick);
+
+                    function radioClick(evt) {
+                        if (this.value === '1') {
+                            source.options.identify = true;
+                            source.options.legend = false;
+                            L.DomUtil.get('imglegend').src = '';
+                        } else if (this.value === '2') {
+                            source.options.identify = false;
+                            source.options.legend = true;
+                            console.log(source.options);
+                            L.DomUtil.get('imglegend').src = source.getLayerLegendURL('Sous Bassins');
+                        }
+                        source.getEvents();
+                    }
+                    ;
+                }
+                return map;
+            }
+
+            function basemap() {
+                // Attribution (https://gist.github.com/mourner/1804938)
+                var mqcdn = "http://otile{s}.mqcdn.com/tiles/1.0.0/{type}/{z}/{x}/{y}.png";
+                var osmAttr = 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>';
+                var mqTilesAttr = 'Tiles &copy; <a href="http://www.mapquest.com/" target="_blank">MapQuest</a> <img src="http://developer.mapquest.com/content/osm/mq_logo.png" />';
+                return L.tileLayer(mqcdn, {
+                    'subdomains': '1234',
+                    'type': 'map',
+                    'attribution': osmAttr + ', ' + mqTilesAttr
+                });
+
+                //    return L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                //        maxZoom: 19,
+                //        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                //    });
+            }
+
+            function blank() {
+                var layer = new L.Layer();
+                layer.onAdd = layer.onRemove = function () {};
+                return layer;
+            }
+
+        </script>
+    </head>
+    <body onload="load()">
+        <h2><a href="https://github.com/heigeo/leaflet.wms">leaflet.wms</a></h2>
+        <iframe src="http://ghbtns.com/github-btn.html?user=heigeo&repo=leaflet.wms&type=watch&count=true"
+                allowtransparency="true" frameborder="0" scrolling="0" width="110" height="20"></iframe>
+        <iframe src="http://ghbtns.com/github-btn.html?user=heigeo&repo=leaflet.wms&type=fork&count=true"
+                allowtransparency="true" frameborder="0" scrolling="0" width="95" height="20"></iframe>
+
+        <h3>(new) Auto WMS Layers</h3>
+        <p>Click the map to trigger a getFeatureInfo on features</p>
+        <form>
+            <label for="range-autowms-map">Opacity</label>
+            <input id="range-autowms-map" type="range" min=0 max=1 step=0.1 value=1>
+        </form>
+        <div id="autowms-map"></div>
+
+        <h3>Overlay ("Single-Tile"/Untiled Mode)</h3>
+        <p>Click the map to get information about the underlying data.</p>
+        <form>
+            <label for="range-overlay-map">Opacity</label>
+            <input id="range-overlay-map" type="range" min=0 max=1 step=0.1 value=1>
+            <input type="radio" name="group1" id="info-overlay-map" value="1" /><label for="info-overlay-map"> Info</label>
+            <input type="radio" name="group1" id="legend-overlay-map" value="2" /><label for="legend-overlay-map"> Legend</label>
+        </form>
+        <img id='imglegend' src=""/>
+        <div id="overlay-map"></div>
+
+        <h3>Tiled Layer</h3>
+        <p>Click the map to get information about the underlying data.</p>
+        <form>
+            <label for="range-tiled-map">Opacity</label>
+            <input id="range-tiled-map" type="range" min=0 max=1 step=0.1 value=1>
+        </form>
+        <div id="tiled-map"></div>
+    </body>
+</html>
+

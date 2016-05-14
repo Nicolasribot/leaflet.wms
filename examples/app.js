@@ -1,13 +1,13 @@
+
 requirejs.config({
     'baseUrl': '../lib',
     'paths': {
         'leaflet.wms': '../leaflet.wms',
-        'iconlayers': '/leafleticonlayers/src/iconLayers',
-        'wms-capabilities': '/leafletwms/wms-capabilities'
+        'iconLayers': '/leafleticonlayers/src/iconLayers'
     }
 });
 
-define(['leaflet', 'leaflet.wms', 'iconlayers', 'wms-capabilities'],
+define(['leaflet', 'leaflet.wms'],
 function(L, wms) {
 
 var autowmsMap = '';
@@ -17,6 +17,7 @@ var overlayMap = '';
 autowmsMap = createMap('autowms-map', false, true);
 //overlayMap = createMap('overlay-map', false, false);
 //tiledMap = createMap('tiled-map', true, false);
+
 
 function createMap(div, tiled, autowms) {
     // Map configuration
@@ -39,14 +40,13 @@ function createMap(div, tiled, autowms) {
                 'format': 'image/png'
             }
         );
-
-        // adds source to map
-        source.addTo(map);
-        // plug event onload to do things with layer
-        source._overlay.on('add', function() {
-            L.control.iconLayers(source.getLayersForControl()).addTo(map);
-        } );
         
+        source.loadFromWMS(function() {
+            L.control.iconLayers(this.getLayersForControl()).addTo(map);
+        });
+        
+        source.addTo(map);
+
         // Opacity slider
         var slider = L.DomUtil.get('range-' + div);
         L.DomEvent.addListener(slider, 'change', function() {
