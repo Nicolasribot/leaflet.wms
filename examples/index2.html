@@ -53,7 +53,6 @@
                     var source = L.WMS.source(
                             "http://localhost/qgis/qgis_mapserv.fcgi?map=/Users/nicolas/Projets/smage/demo/web/QGIS-Web-Client-master/projets_qgis/appli_smage.qgs",
                             {
-                                'autowms': true,
                                 'format': 'image/png'
                             }
                     ).addTo(map).loadFromWMS(function () {
@@ -165,6 +164,8 @@
         <form>
             <label for="range-autowms-map">Opacity</label>
             <input id="range-autowms-map" type="range" min=0 max=1 step=0.1 value=1>
+            <input type="radio" name="group1" id="info-autowms-map" value="1" /><label for="info-autowms-map"> Info</label>
+            <input type="radio" name="group1" id="legend-autowms-map" value="2" /><label for="legend-autowms-map"> Legend</label>
         </form>
         <div id="autowms-map"></div>
 

@@ -37,7 +37,6 @@ wms.Source = L.Layer.extend({
         'tiled': false,
         'identify': false ,
         'legend': true, // onclick layer event is getLegendGraphics
-        'autowms': true, // loads layers from wms service. Exception in case of CORS restriction
         'info_format': 'text/html',
         'legend_format': 'image/png',
         'feature_count': 10
@@ -55,7 +54,7 @@ wms.Source = L.Layer.extend({
         var overlayOptions = {};
         for (var opt in this.options) {
             if (opt != 'tiled' && opt != 'identify' && opt != 'info_format'
-                && opt != 'legend' && opt != 'legend_format' && opt != 'autowms' 
+                && opt != 'legend' && opt != 'legend_format'
                 && opt != 'feature_count') {
                 overlayOptions[opt] = this.options[opt];
             }
@@ -69,10 +68,11 @@ wms.Source = L.Layer.extend({
 
     'onAdd': function() {
         this.refreshOverlay();
-        console.log();
     },
 
     'getEvents': function() {
+        console.log('called');
+
         if (this.options.identify) {
             return {'click': this.identify};
         } else if (this.options.legend) {
@@ -99,7 +99,6 @@ wms.Source = L.Layer.extend({
         var u = '';
         if (this._capabilities) {
             u = this._wmsLayers[name].iconURL;
-            console.log(u);
         } else {
             // todo: factorize WMS url building from params
             var uppercase = this.options.uppercase || false;
@@ -107,10 +106,8 @@ wms.Source = L.Layer.extend({
             // changes size
             params.width = 80;
             params.height = 80;
-            console.log(params);
             var pstr = L.Util.getParamString(params, this._url, uppercase);
             u = this._url + pstr;
-            console.log(u);
         }
         
         return u;
@@ -128,7 +125,7 @@ wms.Source = L.Layer.extend({
         // option, title, layer
         var ret = [];
         if (this._subLayers) {
-            console.log('getLayersForControl: sublayers to build: ');
+//            console.log('getLayersForControl: sublayers to build: ');
             for (var ln in this._subLayers) {
                 var obj = {
                     'title': ln,
@@ -393,11 +390,6 @@ wms.Source = L.Layer.extend({
     },
     // tries to load a getCapabilities document to read layers info from.
     'loadFromWMS': function (callback) {
-        console.log(this.options);
-        if (this.options.autowms !== true) {
-            console.log('autowms NOT enabled...');
-            return;
-        }
         console.log('autowms enabled !');
         this.getCapabilities(null, done);
         
@@ -447,7 +439,6 @@ wms.Source = L.Layer.extend({
                 // find layers bbox for configured srs and sets it to overload params
                 for (var j = 0; j < l.BoundingBox.length; j++) {
                     if (l.BoundingBox[j].crs === crs.code) {
-                        console.log('found');
                         params.bbox = l.BoundingBox[j].extent.join(',');
                         break;
                     }
