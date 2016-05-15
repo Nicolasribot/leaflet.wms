@@ -35,8 +35,8 @@ var wms = {};
 wms.Source = L.Layer.extend({
     'options': {
         'tiled': false,
-        'identify': false ,
-        'legend': true, // onclick layer event is getLegendGraphics
+        'identify': true ,
+        'legend': false, // onclick overlay layer event is getLegendGraphics
         'info_format': 'text/html',
         'legend_format': 'image/png',
         'feature_count': 10
@@ -71,13 +71,14 @@ wms.Source = L.Layer.extend({
     },
 
     'getEvents': function() {
-        console.log('called');
+        console.log(this);
 
         if (this.options.identify) {
             return {'click': this.identify};
         } else if (this.options.legend) {
             return {'click': this.legend};
         } else {
+            console.log('called:');
             return {};
         }
     },
@@ -112,12 +113,23 @@ wms.Source = L.Layer.extend({
         
         return u;
     },
+    // returns layer title, or name if no title found
+    'getLayerTitle': function(name) {
+        return this._wmsLayers ? this._wmsLayers[name].title : name;
+    },
     
     'getLayerLegendURL': function(name) {
         // returns URL legend for this layer
-        var params = this.getLegendGraphicsParams([name], true);
+        // TODO: only one container for subLayers
+        var ret = '';
+        if (this._wmsLayers) {
+            ret = this._wmsLayers[name].legendURL;
+        } else {
+            var params = this.getLegendGraphicsParams([name], true);
+            ret = this._url + L.Util.getParamString(params, this._url);
+        }
         // change image image
-        return this._url + L.Util.getParamString(params, this._url);
+        return ret;
     },
     
     'getLayersForControl' : function () {
@@ -128,7 +140,7 @@ wms.Source = L.Layer.extend({
 //            console.log('getLayersForControl: sublayers to build: ');
             for (var ln in this._subLayers) {
                 var obj = {
-                    'title': ln,
+                    'title': this.getLayerTitle(ln),
                     'icon': this.getLayerIcon(ln), 
                     'layer': this.getLayer(ln),
                     'options' : {
@@ -165,12 +177,16 @@ wms.Source = L.Layer.extend({
             this._overlay.setParams({'layers': subLayers});
             this._overlay.addTo(this._map);
         }
+//        console.log('refreshing overlay with these layers: ' + subLayers);
     },
 
     'identify': function(evt) {
         // Identify map features in response to map clicks. To customize this
         // behavior, create a class extending wms.Source and override one or
         // more of the following hook functions.
+        if (this.options.legend) {
+            return this.legend(evt);
+        }
 
         var layers = this.getIdentifyLayers();
         if (!layers.length) {
@@ -240,7 +256,7 @@ wms.Source = L.Layer.extend({
             service: 'WMS',
             version: this._overlay.wmsParams.version
         };
-        console.log(params);
+//        console.log(params);
         var url = this._url + L.Util.getParamString(params, this._url, uppercase);
 //        console.log(url);
 
@@ -390,11 +406,14 @@ wms.Source = L.Layer.extend({
     },
     // tries to load a getCapabilities document to read layers info from.
     'loadFromWMS': function (callback) {
-        console.log('autowms enabled !');
+        console.log('autowms called. Trying to load layers list from: '+ this._url);
         this.getCapabilities(null, done);
         
         function done(capa) {
 //            console.log(capa);
+            // TODO: factorize
+            var projKey = parseFloat(this._overlay.wmsParams.version) >= 1.3 ? 'srs' : 'crs';
+
             var uppercase = this.options.uppercase || false;
             var crs = this.options.crs || this._map.options.crs;
             
@@ -403,10 +422,8 @@ wms.Source = L.Layer.extend({
             console.log(this._capabilities);
             // adds a list of wmslayers with useful properties
             this._wmsLayers = {};
-            // copies the overlay options to be able to build custom URL for found wmslayers:
-            var params = this.wmsParams = L.extend({}, this._overlay.wmsParams);
             // sets main WMS params now we can read them from server:
-            console.log(params);
+//            console.log(params);
             this._overlay.wmsParams.version = this._capabilities.version;
 
             // reads image format: takes first available format in array
@@ -415,13 +432,23 @@ wms.Source = L.Layer.extend({
             if (!this.options.format) {
                 this._overlay.wmsParams.format = this._capabilities.Capability.Request.GetMap.Format[0];
             } else {
-                console.log('user format to user:' + this.options.format);
+                console.log('user-defined image format to use:' + this.options.format);
                 this._overlay.wmsParams.format = this.options.format;
             }
+            // handy trick to build a custom object formatter
+//            console.log('list of advertised SRS: ' + 
+//                    this._capabilities.Capability.Layer.BoundingBox.map(function(elem){
+//                        return elem[projKey];
+//                    }).join(","));
+
+            console.log('list of advertised SRS: ' + 
+                    this._capabilities.Capability.Layer.SRS.join(", "));
 
             // reads legend_format: takes first found
             // TODO: one legend_format per legendGraphics available or getXXX methods to access the _capabilities object ?
-            this.legend_format = this._capabilities.Capability.Layer.Layer[0].Style[0].LegendURL[0].Format;
+            if (this._capabilities.Capability.Layer.Layer[0].Style) {
+                this.legend_format = this._capabilities.Capability.Layer.Layer[0].Style[0].LegendURL[0].Format;
+            }
 
             // reads info_format: 
             if (this._capabilities.Capability.Request.GetFeatureInfo.Format.indexOf('text/html') >= 0) {
@@ -430,37 +457,86 @@ wms.Source = L.Layer.extend({
                 //takes first available
                 this.legend_format = this._capabilities.Capability.Request.GetFeatureInfo.Format[0];
             }
-
-            for (i = 0; i < this._capabilities.Capability.Layer.Layer.length; i++) {
-                var l = this._capabilities.Capability.Layer.Layer[i];
-                // TODO: stores legendURL and iconURL built from capa
-                this._subLayers[l.Name]= true;
-                params.layers = l.Name;
-                // find layers bbox for configured srs and sets it to overload params
-                for (var j = 0; j < l.BoundingBox.length; j++) {
-                    if (l.BoundingBox[j].crs === crs.code) {
-                        params.bbox = l.BoundingBox[j].extent.join(',');
-                        break;
-                    }
-                }
-                // builds MapURL for icon, with custom bbox if any
-                // TODO: from config/factorize.
-                params.width = 80;
-                params.height = 80;
-                var url = this._url + L.Util.getParamString(params, this._url, uppercase);
-
-                var props = {
-                    'legendURL': l.Style[0].LegendURL[0].OnlineResource,
-                    'iconURL': url
-                };
-
-                this._wmsLayers[l.Name] = props;
-//                console.log(l);
-            }
+            
+            // reads layers: flatten them as nested structure is supported in WMS, but
+            // not here yet
+            // TODO: tree struct for layers ?
+            var layers = [];
+            //TODO: clean
+            layers = this.flattenLayers(this._capabilities.Capability.Layer.Layer, projKey, crs, uppercase, layers);
+            console.log(layers);
+            
             this.refreshOverlay();
             callback.call(this);
 //            console.log('Done getcapa');
         };
+    },
+    // returns capabilities layers flattened in the given ret array.
+    // based on layer.Name property:
+    // TODO: clean management based on OGC specs
+    'flattenLayers': function (arr, projKey, crs, uppercase, ret) {
+        var that = this;
+        arr.forEach(function (l) {
+            // copies the overlay options to be able to build custom URL for found wmslayers:
+            var params = that.wmsParams = L.extend({}, that._overlay.wmsParams);
+
+            if (l.Name) { 
+                // Layer with name found: built it
+                that._subLayers[l.Name]= true;
+                params.layers = l.Name;
+                // find layers bbox for configured srs and sets it
+                if (l.BoundingBox) {
+                    for (var j = 0; j < l.BoundingBox.length; j++) {
+                        if (l.BoundingBox[j][projKey] === crs.code) {
+                            params.bbox = l.BoundingBox[j].extent.join(',');
+                            params.srs = l.BoundingBox[j][projKey];
+                            break;
+                        }
+                    }
+                    // Forces default layer srs:
+                    if (! params.bbox) {
+                        params.bbox = l.BoundingBox[0].extent.join(',');
+                        params.srs = l.BoundingBox[0][projKey];
+    //                    console.log('forcing bbox for this layer: ' + params.bbox);
+                    }
+                } else {
+                    console.log('no BoundinBox for layer : ' + l.Name + '. Using parent BoundingBox');
+                    if (parentBbox && parentSrs) {
+                        params.bbox = parentBbox;
+                        params.srs = parentSrs;
+                    }
+                }
+                //
+                // builds MapURL for icon, with custom bbox if any
+                // TODO: from config/factorize.
+                params.width = 80;
+                params.height = 80;
+                var url = that._url + L.Util.getParamString(params, that._url, uppercase);
+//                console.log('iconURL: ' + l.Name + ' :' + url);
+
+                // wmsLayers options used for iconLayers
+                var props = {
+                    'title': l.Title, 
+                    'iconURL': url
+                };
+                if (l.Style && l.Style[0].LegendURL) {
+                    props['legendURL'] = l.Style[0].LegendURL[0].OnlineResource;
+                    console.log('legendURL: ' + l.Style[0].LegendURL[0].OnlineResource);
+                } else {
+                    console.log('no OnlineResource (legend) for layer ' + l.Name);
+                }
+
+                that._wmsLayers[l.Name] = props;
+                // stores current bbox params for this layer, as its children may not have a BoundingBox object
+                // will use the parent
+                parentBbox = params.bbox;
+                parentSrs = params.srs;
+            }
+            if (l.Layer) {
+                that.flattenLayers(l.Layer, projKey, crs, uppercase, ret);
+            }
+        });
+        return ret;
     }
 });
 

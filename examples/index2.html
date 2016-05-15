@@ -9,7 +9,9 @@
 
         <!--TODO: GIT URLs for this page, not relative links-->
         <script src="../lib/leaflet.js" ></script>
+        <script src="../cors-proxy-demo.js" ></script>
         <script src="/leafleticonlayers/src/iconLayers.js" ></script>
+        <script src="/leafleticonlayers/examples/providers.js" ></script>
         <script src="/leafleticonlayers/src/configBuilder.js" ></script>
         <script src="../leaflet.wms.js"></script>
         <script src="../wms-capabilities.js"></script>
@@ -38,36 +40,68 @@
 
             function createMap(div, tiled, autowms) {
                 // Map configuration
+                var mapConf = {crs: L.CRS.EPSG4326};
+//                var map = L.map(div, mapConf);
                 var map = L.map(div);
                 map.setView([44.0, 4.4], 8);
 
 
-                var basemaps = {
-                    'Basemap': basemap().addTo(map),
-                    'Blank': blank()
-                };
+//                var basemaps = {
+//                    'Basemap': basemap().addTo(map),
+//                    'Blank': blank()
+//                };
+
+                //iconLayers for baseMap
+//                var layers = [];
+//                for (var providerId in providers) {
+//                    layers.push(providers[providerId]);
+//                }
+//
+//                layers.push({
+//                    layer: {
+//                        onAdd: function () {},
+//                        onRemove: function () {}
+//                    },
+//                    title: 'empty'
+//                });
+//
+//                var ctrl = L.control.iconLayers(layers, {position: 'topright'}).addTo(map);
+
+                var wmsSource = null;
 
                 if (autowms) {
                     // Test autowms mode: Adds only a WMS service URL
                     // Add WMS source/layers
-                    var source = L.WMS.source(
+                    wmsSource = L.WMS.source(
                             "http://localhost/qgis/qgis_mapserv.fcgi?map=/Users/nicolas/Projets/smage/demo/web/QGIS-Web-Client-master/projets_qgis/appli_smage.qgs",
+//                            "http://demo.opengeo.org/geoserver/wms?", // cors-compatible
+//                            "http://deegree3-demo.deegree.org/utah-workspace/services", // not cors-compatible
+//                            "http://ows.terrestris.de/osm/service", // cors compatible
+//                             "http://services.sandre.eaufrance.fr/geo/ouvrage", // not cors-compatible
+//                              "http://sd1878-2.sivit.org/geoserver/wms", // No answer ?
+//                               "http://iceds.ge.ucl.ac.uk/cgi-bin/icedswms?", // forbidden
+//                              "http://geoservices.brgm.fr/geologie?", // cors compatible
+//                                "http://wms.jpl.nasa.gov/wms.cgi?", // timeout: down ?
+//                              "http://www2.demis.nl/worldmap/wms.asp", // not cors-compatible, 4326 only
+//                            "http://wms.geosignal.fr/metropole?", // not cors-compatible, 4326 + French SRS only
+//                              "http://geolittoral.application.equipement.gouv.fr/wms/metropole", // not cors-compatible
+//                              "http://gesteau.oieau.fr/service", // not cors-compatible
+//                              "http://services.sandre.eaufrance.fr/geo/zonage", // not cors-compatible
+//                              "http://services.sandre.eaufrance.fr/geo/stations", // not cors-compatible
+//                                "http://mesonet.agron.iastate.edu/cgi-bin/wms/goes/conus_vis.cgi?", // cors-compatible
                             {
                                 'format': 'image/png'
                             }
-                    ).addTo(map).loadFromWMS(function () {
-                        L.control.iconLayers(this.getLayersForControl()).addTo(map);
+                    );
+                    wmsSource.addTo(map).loadFromWMS(function () {
+                        var opt = {
+                            position: 'bottomleft',
+                            maxLayersInRow: 17
+                        };
+                        L.control.iconLayers(this.getLayersForControl(), opt).addTo(map);
                     });
-
-                    // Opacity slider
-                    var slider = L.DomUtil.get('range-' + div);
-                    L.DomEvent.addListener(slider, 'change', function () {
-                        source.setOpacity(this.value);
-                    });
-
-
                 } else {
-                    var source = wms.source(
+                    wmsSource = wms.source(
                             //            "http://webservices.nationalatlas.gov/wms",
                             "http://localhost/qgis/qgis_mapserv.fcgi?map=/Users/nicolas/Projets/smage/demo/web/QGIS-Web-Client-master/projets_qgis/appli_smage.qgs",
                             {
@@ -79,8 +113,8 @@
                     );
 
                     var layers = {
-                        'Sous Bassins': source.getLayer("Sous Bassins"),
-                        'Parcs Nationaux': source.getLayer("Parcs Nationaux")
+                        'Sous Bassins': wmsSource.getLayer("Sous Bassins"),
+                        'Parcs Nationaux': wmsSource.getLayer("Parcs Nationaux")
                                 //            ,'Lakes & Rivers': source.getLayer("lakesrivers"),
                                 //            'Airports': source.getLayer("airports"),
                                 //            'State Capitals': source.getLayer("statecap")
@@ -89,41 +123,37 @@
                         layers[name].addTo(map);
                     }
 
-                    // Create layer control
-                    //L.control.layers(basemaps, layers).addTo(map);
-                    //        L.control.iconLayers(
-                    //                IconLayersConfigBuilder.buildFromWMSSource(source)
-                    //                ).addTo(map);
-                    L.control.iconLayers(source.getLayersForControl()
+                    L.control.iconLayers(wmsSource.getLayersForControl()
                             ).addTo(map);
-
-                    // Opacity slider
-                    var slider = L.DomUtil.get('range-' + div);
-                    L.DomEvent.addListener(slider, 'change', function () {
-                        source.setOpacity(this.value);
-                    });
-
-                    // legend/info radio
-                    var r1 = L.DomUtil.get('info-' + div);
-                    L.DomEvent.addListener(r1, 'click', radioClick);
-                    var r2 = L.DomUtil.get('legend-' + div);
-                    L.DomEvent.addListener(r2, 'click', radioClick);
-
-                    function radioClick(evt) {
-                        if (this.value === '1') {
-                            source.options.identify = true;
-                            source.options.legend = false;
-                            L.DomUtil.get('imglegend').src = '';
-                        } else if (this.value === '2') {
-                            source.options.identify = false;
-                            source.options.legend = true;
-                            console.log(source.options);
-                            L.DomUtil.get('imglegend').src = source.getLayerLegendURL('Sous Bassins');
-                        }
-                        source.getEvents();
-                    }
-                    ;
                 }
+
+                // Opacity slider
+                var slider = L.DomUtil.get('range-' + div);
+                L.DomEvent.addListener(slider, 'change', function () {
+                    wmsSource.setOpacity(this.value);
+                });
+
+                // legend/info radio
+                var r1 = L.DomUtil.get('info-' + div);
+                L.DomEvent.addListener(r1, 'click', radioClick);
+                var r2 = L.DomUtil.get('legend-' + div);
+                L.DomEvent.addListener(r2, 'click', radioClick);
+
+                function radioClick(evt) {
+                    if (this.value === '1') {
+                        wmsSource.options.identify = true;
+                        wmsSource.options.legend = false;
+                    } else if (this.value === '2') {
+                        wmsSource.options.identify = false;
+                        wmsSource.options.legend = true;
+                    }
+//                    var e = wmsSource.getEvents();
+//                    console.log(e);
+////                    L.DomEvent.on(wmsSource._overlay, e);
+//                    map.off('click', wmsSource);
+////                    map.on(e, wmsSource);
+                }
+                ;
                 return map;
             }
 
