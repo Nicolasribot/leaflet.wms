@@ -52,20 +52,20 @@
 //                };
 
                 //iconLayers for baseMap
-//                var layers = [];
-//                for (var providerId in providers) {
-//                    layers.push(providers[providerId]);
-//                }
-//
-//                layers.push({
-//                    layer: {
-//                        onAdd: function () {},
-//                        onRemove: function () {}
-//                    },
-//                    title: 'empty'
-//                });
-//
-//                var ctrl = L.control.iconLayers(layers, {position: 'topright'}).addTo(map);
+                var layers = [];
+                for (var providerId in providers) {
+                    layers.push(providers[providerId]);
+                }
+
+                layers.push({
+                    layer: {
+                        onAdd: function () {},
+                        onRemove: function () {}
+                    },
+                    title: 'empty'
+                });
+
+                var ctrl = L.control.iconLayers(layers, {position: 'topright'}).addTo(map);
 
                 var wmsSource = null;
 
@@ -77,26 +77,27 @@
 //                            "http://demo.opengeo.org/geoserver/wms?", // cors-compatible
 //                            "http://deegree3-demo.deegree.org/utah-workspace/services", // not cors-compatible
 //                            "http://ows.terrestris.de/osm/service", // cors compatible
-//                             "http://services.sandre.eaufrance.fr/geo/ouvrage", // not cors-compatible
-//                              "http://sd1878-2.sivit.org/geoserver/wms", // No answer ?
-//                               "http://iceds.ge.ucl.ac.uk/cgi-bin/icedswms?", // forbidden
-//                              "http://geoservices.brgm.fr/geologie?", // cors compatible
-//                                "http://wms.jpl.nasa.gov/wms.cgi?", // timeout: down ?
-//                              "http://www2.demis.nl/worldmap/wms.asp", // not cors-compatible, 4326 only
+//                            "http://services.sandre.eaufrance.fr/geo/ouvrage", // not cors-compatible
+//                            "http://sd1878-2.sivit.org/geoserver/wms", // No answer ?
+//                            "http://iceds.ge.ucl.ac.uk/cgi-bin/icedswms?", // forbidden
+//                            "http://geoservices.brgm.fr/geologie?", // cors compatible
+//                            "http://wms.jpl.nasa.gov/wms.cgi?", // timeout: down ?
+//                            "http://www2.demis.nl/worldmap/wms.asp", // not cors-compatible, 4326 only
 //                            "http://wms.geosignal.fr/metropole?", // not cors-compatible, 4326 + French SRS only
-//                              "http://geolittoral.application.equipement.gouv.fr/wms/metropole", // not cors-compatible
-//                              "http://gesteau.oieau.fr/service", // not cors-compatible
-//                              "http://services.sandre.eaufrance.fr/geo/zonage", // not cors-compatible
-//                              "http://services.sandre.eaufrance.fr/geo/stations", // not cors-compatible
-//                                "http://mesonet.agron.iastate.edu/cgi-bin/wms/goes/conus_vis.cgi?", // cors-compatible
-                            {
+//                            "http://geolittoral.application.equipement.gouv.fr/wms/metropole", // not cors-compatible
+//                            "http://gesteau.oieau.fr/service", // not cors-compatible
+//                            "http://services.sandre.eaufrance.fr/geo/zonage", // not cors-compatible
+//                            "http://services.sandre.eaufrance.fr/geo/stations", // not cors-compatible
+//                            "http://mesonet.agron.iastate.edu/cgi-bin/wms/goes/conus_vis.cgi?", // cors-compatible
+                        {
                                 'format': 'image/png'
                             }
                     );
                     wmsSource.addTo(map).loadFromWMS(function () {
                         var opt = {
+                            multi: true,
                             position: 'bottomleft',
-                            maxLayersInRow: 17
+                            maxLayersInRow: 3
                         };
                         L.control.iconLayers(this.getLayersForControl(), opt).addTo(map);
                     });

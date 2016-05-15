@@ -140,6 +140,7 @@ wms.Source = L.Layer.extend({
 //            console.log('getLayersForControl: sublayers to build: ');
             for (var ln in this._subLayers) {
                 var obj = {
+                    'multi': true,
                     'title': this.getLayerTitle(ln),
                     'icon': this.getLayerIcon(ln), 
                     'layer': this.getLayer(ln),
@@ -521,7 +522,7 @@ wms.Source = L.Layer.extend({
                 };
                 if (l.Style && l.Style[0].LegendURL) {
                     props['legendURL'] = l.Style[0].LegendURL[0].OnlineResource;
-                    console.log('legendURL: ' + l.Style[0].LegendURL[0].OnlineResource);
+//                    console.log('legendURL: ' + l.Style[0].LegendURL[0].OnlineResource);
                 } else {
                     console.log('no OnlineResource (legend) for layer ' + l.Name);
                 }
