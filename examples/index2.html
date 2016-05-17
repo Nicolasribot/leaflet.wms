@@ -13,6 +13,7 @@
         <script src="/leafleticonlayers/src/iconLayers.js" ></script>
         <script src="/leafleticonlayers/examples/providers.js" ></script>
         <script src="/leafleticonlayers/src/configBuilder.js" ></script>
+        
         <script src="../leaflet.wms.js"></script>
         <script src="../wms-capabilities.js"></script>
         <style>
@@ -26,6 +27,13 @@
                 margin: 1em;
                 border: 1px solid #999;
             }
+
+            #div1 {
+                width: 350px;
+                height: 70px;
+                padding: 10px;
+                border: 1px solid #aaaaaa;
+            }
         </style>
         <script>
             var autowmsMap = '';
@@ -34,7 +42,7 @@
 
             function load() {
                 autowmsMap = createMap('autowms-map', false, true);
-                //overlayMap = createMap('overlay-map', false, false);
+//                overlayMap = createMap('overlay-map', false, false);
                 //tiledMap = createMap('tiled-map', true, false);
             }
 
@@ -46,26 +54,26 @@
                 map.setView([44.0, 4.4], 8);
 
 
-//                var basemaps = {
-//                    'Basemap': basemap().addTo(map),
-//                    'Blank': blank()
-//                };
+                var basemaps = {
+                    'Basemap': basemap().addTo(map),
+                    'Blank': blank()
+                };
 
-                //iconLayers for baseMap
-                var layers = [];
-                for (var providerId in providers) {
-                    layers.push(providers[providerId]);
-                }
-
-                layers.push({
-                    layer: {
-                        onAdd: function () {},
-                        onRemove: function () {}
-                    },
-                    title: 'empty'
-                });
-
-                var ctrl = L.control.iconLayers(layers, {position: 'topright'}).addTo(map);
+//                //iconLayers for baseMap
+//                var layers = [];
+//                for (var providerId in providers) {
+//                    layers.push(providers[providerId]);
+//                }
+//
+//                layers.push({
+//                    layer: {
+//                        onAdd: function () {},
+//                        onRemove: function () {}
+//                    },
+//                    title: 'empty'
+//                });
+//
+//                var ctrl = L.control.iconLayers(layers, {position: 'topright'}).addTo(map);
 
                 var wmsSource = null;
 
@@ -74,6 +82,7 @@
                     // Add WMS source/layers
                     wmsSource = L.WMS.source(
                             "http://localhost/qgis/qgis_mapserv.fcgi?map=/Users/nicolas/Projets/smage/demo/web/QGIS-Web-Client-master/projets_qgis/appli_smage.qgs",
+//                            "http://localhost/qgis/qgis_mapserv.fcgi?map=/Volumes/gro/data/geodata/qgis/leaflet-iconLayers-demo.qgs",
 //                            "http://demo.opengeo.org/geoserver/wms?", // cors-compatible
 //                            "http://deegree3-demo.deegree.org/utah-workspace/services", // not cors-compatible
 //                            "http://ows.terrestris.de/osm/service", // cors compatible
@@ -89,7 +98,7 @@
 //                            "http://services.sandre.eaufrance.fr/geo/zonage", // not cors-compatible
 //                            "http://services.sandre.eaufrance.fr/geo/stations", // not cors-compatible
 //                            "http://mesonet.agron.iastate.edu/cgi-bin/wms/goes/conus_vis.cgi?", // cors-compatible
-                        {
+                            {
                                 'format': 'image/png'
                             }
                     );
@@ -97,12 +106,14 @@
                         var opt = {
                             multi: true,
                             position: 'bottomleft',
-                            maxLayersInRow: 3
+                            maxLayersInRow: 10,
+//                             theme: '#707070'
+                            theme: '#A8A8A8'
                         };
                         L.control.iconLayers(this.getLayersForControl(), opt).addTo(map);
                     });
                 } else {
-                    wmsSource = wms.source(
+                    wmsSource = L.WMS.source(
                             //            "http://webservices.nationalatlas.gov/wms",
                             "http://localhost/qgis/qgis_mapserv.fcgi?map=/Users/nicolas/Projets/smage/demo/web/QGIS-Web-Client-master/projets_qgis/appli_smage.qgs",
                             {
@@ -124,8 +135,9 @@
                         layers[name].addTo(map);
                     }
 
-                    L.control.iconLayers(wmsSource.getLayersForControl()
-                            ).addTo(map);
+//                    L.control.iconLayers(wmsSource.getLayersForControl()
+//                            ).addTo(map);
+                    L.control.layers(basemaps, layers).addTo(map);
                 }
 
                 // Opacity slider
@@ -181,6 +193,20 @@
                 return layer;
             }
 
+            function allowDrop(ev) {
+                ev.preventDefault();
+            }
+
+            function drag(ev) {
+                ev.dataTransfer.setData("Text", ev.target.id);
+            }
+
+            function drop(ev) {
+                var data = ev.dataTransfer.getData("Text");
+                ev.target.appendChild(document.getElementById(data));
+                ev.preventDefault();
+            }
+
         </script>
     </head>
     <body onload="load()">
@@ -191,6 +217,11 @@
                 allowtransparency="true" frameborder="0" scrolling="0" width="95" height="20"></iframe>
 
         <h3>(new) Auto WMS Layers</h3>
+
+<!--        drag test
+        <div id="div1" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+        <p id="drag1" draggable="true" ondragstart="drag(event)">This is a draggable paragraph. Drag this element into the rectangle.</p>-->
+
         <p>Click the map to trigger a getFeatureInfo on features</p>
         <form>
             <label for="range-autowms-map">Opacity</label>
