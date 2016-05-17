@@ -45,7 +45,7 @@ wms.Source = L.Layer.extend({
     'initialize': function(url, options) {
         L.setOptions(this, options);
         this._url = url;
-        this._subLayers = {};
+        this._subLayers = {}; // now a more complex object storing layer visibility, order, and wms paras
         this._overlay = this.createOverlay(this.options.tiled);
     },
 
@@ -71,14 +71,11 @@ wms.Source = L.Layer.extend({
     },
 
     'getEvents': function() {
-        console.log(this);
-
         if (this.options.identify) {
             return {'click': this.identify};
         } else if (this.options.legend) {
             return {'click': this.legend};
         } else {
-            console.log('called:');
             return {};
         }
     },
@@ -99,7 +96,7 @@ wms.Source = L.Layer.extend({
         // get layer bbox if any in getCapabilities
         var u = '';
         if (this._capabilities) {
-            u = this._wmsLayers[name].iconURL;
+            u = this._subLayers[name].wms.iconURL;
         } else {
             // todo: factorize WMS url building from params
             var uppercase = this.options.uppercase || false;
@@ -115,15 +112,15 @@ wms.Source = L.Layer.extend({
     },
     // returns layer title, or name if no title found
     'getLayerTitle': function(name) {
-        return this._wmsLayers ? this._wmsLayers[name].title : name;
+        return this._subLayers ? this._subLayers[name].wms.title : name;
     },
     
     'getLayerLegendURL': function(name) {
         // returns URL legend for this layer
         // TODO: only one container for subLayers
         var ret = '';
-        if (this._wmsLayers) {
-            ret = this._wmsLayers[name].legendURL;
+        if (this._subLayers[name]) {
+            ret = this._subLayers[name].wms.legendURL;
         } else {
             var params = this.getLegendGraphicsParams([name], true);
             ret = this._url + L.Util.getParamString(params, this._url);
@@ -156,19 +153,23 @@ wms.Source = L.Layer.extend({
     },
 
     'addSubLayer': function(name) {
-//        console.log('addSubLayer, param: ' + name);
-        this._subLayers[name] = true;
+        this._subLayers[name] = {showed: true, order: 0, wms: {}};
         this.refreshOverlay();
     },
 
     'removeSubLayer': function(name) {
-//        console.log('deleteSubLayer, param: ' + name);
-        delete this._subLayers[name];
+        this._subLayers[name].showed = false;
         this.refreshOverlay();
     },
 
     'refreshOverlay': function() {
-        var subLayers = Object.keys(this._subLayers).join(",");
+//        var subLayers = Object.keys(this._subLayers).join(",");
+        var subLayers = Object.keys(this._subLayers).map(function(key) {
+            if (this._subLayers[key].showed === true) {
+                return key;
+            }
+        }.bind(this)).join(",");
+        
         if (!this._map) {
             return;
         }
@@ -178,7 +179,6 @@ wms.Source = L.Layer.extend({
             this._overlay.setParams({'layers': subLayers});
             this._overlay.addTo(this._map);
         }
-//        console.log('refreshing overlay with these layers: ' + subLayers);
     },
 
     'identify': function(evt) {
@@ -235,8 +235,8 @@ wms.Source = L.Layer.extend({
         // 
         var url = [];
         if (this._capabilities) {
-            for (var l in this._wmsLayers) {
-                url.push(this._wmsLayers[l].legendURL);
+            for (var l in this._subLayers) {
+                url.push(this._subLayers[l].wms.legendURL);
             }
         } else {
             var params = this.getLegendGraphicsParams(layers, false);
@@ -420,9 +420,7 @@ wms.Source = L.Layer.extend({
             
             this._capabilities = new WMSCapabilities().parse(capa);
 //            this._capabilities = new WMSCapabilities(capa).toJSON();;
-            console.log(this._capabilities);
-            // adds a list of wmslayers with useful properties
-            this._wmsLayers = {};
+//            console.log(this._capabilities);
             // sets main WMS params now we can read them from server:
 //            console.log(params);
             this._overlay.wmsParams.version = this._capabilities.version;
@@ -465,7 +463,7 @@ wms.Source = L.Layer.extend({
             var layers = [];
             //TODO: clean
             layers = this.flattenLayers(this._capabilities.Capability.Layer.Layer, projKey, crs, uppercase, layers);
-            console.log(layers);
+//            console.log(layers);
             
             this.refreshOverlay();
             callback.call(this);
@@ -477,13 +475,14 @@ wms.Source = L.Layer.extend({
     // TODO: clean management based on OGC specs
     'flattenLayers': function (arr, projKey, crs, uppercase, ret) {
         var that = this;
+        var i = 0;
         arr.forEach(function (l) {
             // copies the overlay options to be able to build custom URL for found wmslayers:
             var params = that.wmsParams = L.extend({}, that._overlay.wmsParams);
 
             if (l.Name) { 
                 // Layer with name found: built it
-                that._subLayers[l.Name]= true;
+                that._subLayers[l.Name]= {showed: true, order: i++, wms: {}};
                 params.layers = l.Name;
                 // find layers bbox for configured srs and sets it
                 if (l.BoundingBox) {
@@ -527,7 +526,7 @@ wms.Source = L.Layer.extend({
                     console.log('no OnlineResource (legend) for layer ' + l.Name);
                 }
 
-                that._wmsLayers[l.Name] = props;
+                that._subLayers[l.Name].wms = props;
                 // stores current bbox params for this layer, as its children may not have a BoundingBox object
                 // will use the parent
                 parentBbox = params.bbox;
@@ -669,11 +668,12 @@ wms.Overlay = L.Layer.extend({
         // Determine image URL and whether it has changed since last update
         this.updateWmsParams();
         var url = this.getImageUrl();
+        
         if (this._currentUrl == url) {
             return;
         }
         this._currentUrl = url;
-
+        
         // Keep current image overlay in place until new one loads
         // (inspired by esri.leaflet)
         var bounds = this._map.getBounds();
