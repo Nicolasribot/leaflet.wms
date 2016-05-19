@@ -4,15 +4,15 @@
         <title>leaflet.wms Examples</title>
 
         <link rel="stylesheet" type="text/css" href="../lib/leaflet.css">
-        <link rel="stylesheet" type="text/css" href="/leafleticonlayers/src/iconLayers.css">
+        <link rel="stylesheet" type="text/css" href="/Leaflet-IconLayers/src/iconLayers.css">
         <link rel="stylesheet" type="text/css" href="../leaflet.wms.css">
 
         <!--TODO: GIT URLs for this page, not relative links-->
         <script src="../lib/leaflet.js" ></script>
-        <script src="../cors-proxy-demo.js" ></script>
-        <script src="/leafleticonlayers/src/iconLayers.js" ></script>
-        <script src="/leafleticonlayers/examples/providers.js" ></script>
-        <script src="/leafleticonlayers/src/configBuilder.js" ></script>
+        <script src="../proxy/cors-proxy-demo.js" ></script>
+        <script src="/Leaflet-IconLayers/src/iconLayers.js" ></script>
+        <script src="/Leaflet-IconLayers/examples/providers.js" ></script>
+        <script src="/Leaflet-IconLayers/src/configBuilder.js" ></script>
         
         <script src="../leaflet.wms.js"></script>
         <script src="../wms-capabilities.js"></script>
@@ -52,6 +52,7 @@
 //                var map = L.map(div, mapConf);
                 var map = L.map(div);
                 map.setView([44.0, 4.4], 8);
+//                map.setView([39.0, -110], 8);
 
 
                 var basemaps = {
@@ -81,10 +82,11 @@
                     // Test autowms mode: Adds only a WMS service URL
                     // Add WMS source/layers
                     wmsSource = L.WMS.source(
-                            "http://localhost/qgis/qgis_mapserv.fcgi?map=/Users/nicolas/Projets/smage/demo/web/QGIS-Web-Client-master/projets_qgis/appli_smage.qgs",
+//                            "http://localhost/qgis/qgis_mapserv.fcgi?map=/Users/nicolas/Projets/smage/demo/web/QGIS-Web-Client-master/projets_qgis/appli_smage.qgs",
 //                            "http://localhost/qgis/qgis_mapserv.fcgi?map=/Volumes/gro/data/geodata/qgis/leaflet-iconLayers-demo.qgs",
 //                            "http://demo.opengeo.org/geoserver/wms?", // cors-compatible
 //                            "http://deegree3-demo.deegree.org/utah-workspace/services", // not cors-compatible
+                            "http://localhost/wms-deg-service", // not cors-compatible
 //                            "http://ows.terrestris.de/osm/service", // cors compatible
 //                            "http://services.sandre.eaufrance.fr/geo/ouvrage", // not cors-compatible
 //                            "http://sd1878-2.sivit.org/geoserver/wms", // No answer ?
@@ -108,7 +110,8 @@
                             position: 'bottomleft',
                             maxLayersInRow: 10,
 //                             theme: '#707070'
-                            theme: '#A8A8A8'
+//                            theme: '#A8A8A8'
+                            theme: 'transparent'
                         };
                         L.control.iconLayers(this.getLayersForControl(), opt).addTo(map);
                     });
@@ -217,7 +220,6 @@
                 allowtransparency="true" frameborder="0" scrolling="0" width="95" height="20"></iframe>
 
         <h3>(new) Auto WMS Layers</h3>
-
 <!--        drag test
         <div id="div1" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
         <p id="drag1" draggable="true" ondragstart="drag(event)">This is a draggable paragraph. Drag this element into the rectangle.</p>-->

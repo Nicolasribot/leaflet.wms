@@ -1,7 +1,7 @@
 // Took from: http://gis.stackexchange.com/questions/121555/wms-server-with-cors-enabled
 (function() {
-    var cors_api_host = 'cors-anywhere.herokuapp.com';
-    var cors_api_url = 'https://' + cors_api_host + '/';
+    var cors_api_host = 'localhost';
+    var cors_api_url = 'http://' + cors_api_host + '/';
     var slice = [].slice;
     var origin = window.location.protocol + '//' + window.location.host;
     var open = XMLHttpRequest.prototype.open;

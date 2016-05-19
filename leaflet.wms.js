@@ -164,11 +164,7 @@ wms.Source = L.Layer.extend({
 
     'refreshOverlay': function() {
 //        var subLayers = Object.keys(this._subLayers).join(",");
-        var subLayers = Object.keys(this._subLayers).map(function(key) {
-            if (this._subLayers[key].showed === true) {
-                return key;
-            }
-        }.bind(this)).join(",");
+        var subLayers = this.getShowedLayers(this._subLayers);
         
         if (!this._map) {
             return;
@@ -297,7 +293,7 @@ wms.Source = L.Layer.extend({
             overlay = this.createOverlay();
             overlay.updateWmsParams(this._map);
             wmsParams = overlay.wmsParams;
-            wmsParams.layers = layers.join(',');
+            wmsParams.layers = this.getShowedLayers(layers);
         } else {
             // Use existing overlay
             wmsParams = this._overlay.wmsParams;
@@ -306,7 +302,7 @@ wms.Source = L.Layer.extend({
         var infoParams = {
             'request': 'GetFeatureInfo',
             'info_format': this.options.info_format,
-            'query_layers': layers.join(','),
+            'query_layers': this.getShowedLayers(layers),
             'X': Math.round(point.x),
             'Y': Math.round(point.y)
         };
@@ -322,7 +318,7 @@ wms.Source = L.Layer.extend({
             overlay = this.createOverlay();
             overlay.updateWmsParams(this._map);
             wmsParams = overlay.wmsParams;
-            wmsParams.layers = layers.join(',');
+            wmsParams.layers = this.getShowedLayers(layers);
         } else {
             // Use existing overlay
             wmsParams = this._overlay.wmsParams;
@@ -330,7 +326,7 @@ wms.Source = L.Layer.extend({
         //filters list of layers if requested, based on current list of layers
         // TODO: check
         if (filter) {
-            wmsParams.layers = layers.join(',');
+            wmsParams.layers = this.getShowedLayers(layers);
         }
         // replaces format with info_format parameter
         var legendParams = {
@@ -536,6 +532,19 @@ wms.Source = L.Layer.extend({
                 that.flattenLayers(l.Layer, projKey, crs, uppercase, ret);
             }
         });
+        return ret;
+    },
+    // gets the list of showed layers separated by a comma:
+    // suitable for wms layers parameter
+    // TODO: manage order ?
+    'getShowedLayers': function (layers) {
+        var ret = '';
+        if (layers) {
+            ret = Object.keys(layers).filter(function(key) {
+                return layers[key].showed === true
+            }.bind(this)).join(",");
+            console.log('joined layers: ' + ret);
+        }
         return ret;
     }
 });
@@ -766,4 +775,3 @@ function ajax(url, callback) {
 return wms;
 
 }));
-
