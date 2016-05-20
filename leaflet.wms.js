@@ -53,9 +53,9 @@ wms.Source = L.Layer.extend({
         // Create overlay with all options other than tiled & identify
         var overlayOptions = {};
         for (var opt in this.options) {
-            if (opt != 'tiled' && opt != 'identify' && opt != 'info_format'
-                && opt != 'legend' && opt != 'legend_format'
-                && opt != 'feature_count') {
+            if (opt !== 'tiled' && opt !== 'identify' && opt !== 'info_format'
+                && opt !== 'legend' && opt !== 'legend_format'
+                && opt !== 'feature_count') {
                 overlayOptions[opt] = this.options[opt];
             }
         }
@@ -121,6 +121,7 @@ wms.Source = L.Layer.extend({
         var ret = '';
         if (this._subLayers[name]) {
             ret = this._subLayers[name].wms.legendURL;
+//                console.log(ret);
         } else {
             var params = this.getLegendGraphicsParams([name], true);
             ret = this._url + L.Util.getParamString(params, this._url);
@@ -153,7 +154,12 @@ wms.Source = L.Layer.extend({
     },
 
     'addSubLayer': function(name) {
-        this._subLayers[name] = {showed: true, order: 0, wms: {}};
+        if (this._subLayers[name]) {
+            this._subLayers[name].showed = true;
+        } else {
+            // new layer
+            this._subLayers[name] = {showed: true, order: 0, wms: {}};
+        }
         this.refreshOverlay();
     },
 
@@ -186,7 +192,7 @@ wms.Source = L.Layer.extend({
         }
 
         var layers = this.getIdentifyLayers();
-        if (!layers.length) {
+        if (!layers) {
             return;
         }
         this.getFeatureInfo(
@@ -201,7 +207,8 @@ wms.Source = L.Layer.extend({
         // more of the following hook functions.
 
         var layers = this.getLegendLayers();
-        if (!layers.length) {
+//            console.log(layers);
+        if (!layers) {
             return;
         }
         this.getLegendGraphics(evt.latlng, layers,
@@ -231,8 +238,8 @@ wms.Source = L.Layer.extend({
         // 
         var url = [];
         if (this._capabilities) {
-            for (var l in this._subLayers) {
-                url.push(this._subLayers[l].wms.legendURL);
+            for (var l in layers) {
+                url.push(layers[l].wms.legendURL);
             }
         } else {
             var params = this.getLegendGraphicsParams(layers, false);
@@ -275,25 +282,27 @@ wms.Source = L.Layer.extend({
         // Hook to determine which layers to identify
         if (this.options.identifyLayers)
             return this.options.identifyLayers;
-        return Object.keys(this._subLayers);
+        return this._subLayers;
      },
 
     'getLegendLayers': function() {
         // Hook to determine which layers to legend
         if (this.options.legendLayers)
             return this.options.legendLayers;
-        return Object.keys(this._subLayers);
+        return this._subLayers;
      },
 
     'getFeatureInfoParams': function(point, layers) {
         // Hook to generate parameters for WMS service GetFeatureInfo request
         var wmsParams, overlay;
+        // list of layers to process:
+        var layersList = this.getShowedLayers(layers);
         if (this.options.tiled) {
             // Create overlay instance to leverage updateWmsParams
             overlay = this.createOverlay();
             overlay.updateWmsParams(this._map);
             wmsParams = overlay.wmsParams;
-            wmsParams.layers = this.getShowedLayers(layers);
+            wmsParams.layers = layersList;
         } else {
             // Use existing overlay
             wmsParams = this._overlay.wmsParams;
@@ -302,7 +311,7 @@ wms.Source = L.Layer.extend({
         var infoParams = {
             'request': 'GetFeatureInfo',
             'info_format': this.options.info_format,
-            'query_layers': this.getShowedLayers(layers),
+            'query_layers': layersList,
             'X': Math.round(point.x),
             'Y': Math.round(point.y)
         };
@@ -338,20 +347,20 @@ wms.Source = L.Layer.extend({
 
     'parseFeatureInfo': function(result, url) {
         // Hook to handle parsing AJAX response
-        if (result == "error") {
+        if (result === 'error') {
             // AJAX failed, possibly due to CORS issues.
             // Try loading content in <iframe>.
-            result = "<iframe id='fiframe'  src='" + url + "' style='border:none'>";
+            result = '<iframe id="fiframe" src="' + url + '" style="border:none">';
         }
         return result;
     },
 
     'parseCapabilities': function(result, url) {
         // Hook to handle parsing AJAX response
-        if (result == "error") {
+        if (result === 'error') {
             // AJAX failed, possibly due to CORS issues.
             // Try loading content in <iframe>.
-            result = "<iframe id='fiframe'  src='" + url + "' style='border:none'>";
+            result = '<iframe id="fiframe"  src="' + url + '" style="border:none">';
             alert('Cannot get capabilities from: ' + url + '\nresult: ' + result);
             if (this._map) {
                 this._map.openPopup(result);
@@ -392,14 +401,14 @@ wms.Source = L.Layer.extend({
         // Hook to customize AJAX wait animation
         if (!this._map)
             return;
-        this._map._container.style.cursor = "progress";
+        this._map._container.style.cursor = 'progress';
     },
 
     'hideWaiting': function() {
         // Hook to remove AJAX wait animation
         if (!this._map)
             return;
-        this._map._container.style.cursor = "default";
+        this._map._container.style.cursor = 'default';
     },
     // tries to load a getCapabilities document to read layers info from.
     'loadFromWMS': function (callback) {
@@ -434,10 +443,10 @@ wms.Source = L.Layer.extend({
 //            console.log('list of advertised SRS: ' + 
 //                    this._capabilities.Capability.Layer.BoundingBox.map(function(elem){
 //                        return elem[projKey];
-//                    }).join(","));
+//                    }).join(','));
 
             console.log('list of advertised SRS: ' + 
-                    this._capabilities.Capability.Layer.SRS.join(", "));
+                    this._capabilities.Capability.Layer.SRS.join(', '));
 
             // reads legend_format: takes first found
             // TODO: one legend_format per legendGraphics available or getXXX methods to access the _capabilities object ?
@@ -459,11 +468,9 @@ wms.Source = L.Layer.extend({
             var layers = [];
             //TODO: clean
             layers = this.flattenLayers(this._capabilities.Capability.Layer.Layer, projKey, crs, uppercase, layers);
-//            console.log(layers);
             
             this.refreshOverlay();
             callback.call(this);
-//            console.log('Done getcapa');
         };
     },
     // returns capabilities layers flattened in the given ret array.
@@ -478,7 +485,7 @@ wms.Source = L.Layer.extend({
 
             if (l.Name) { 
                 // Layer with name found: built it
-                that._subLayers[l.Name]= {showed: true, order: i++, wms: {}};
+                that._subLayers[l.Name]= {showed: true, order: (i++), wms: {}};
                 params.layers = l.Name;
                 // find layers bbox for configured srs and sets it
                 if (l.BoundingBox) {
@@ -523,6 +530,7 @@ wms.Source = L.Layer.extend({
                 }
 
                 that._subLayers[l.Name].wms = props;
+                    console.log(that);
                 // stores current bbox params for this layer, as its children may not have a BoundingBox object
                 // will use the parent
                 parentBbox = params.bbox;
@@ -541,10 +549,9 @@ wms.Source = L.Layer.extend({
         var ret = '';
         if (layers) {
             ret = Object.keys(layers).filter(function(key) {
-                return layers[key].showed === true
-            }.bind(this)).join(",");
-            console.log('joined layers: ' + ret);
-        }
+                return layers[key].showed === true;
+            }.bind(this)).join(',');
+        } 
         return ret;
     }
 });
@@ -574,6 +581,7 @@ wms.Layer = L.Layer.extend({
     'onAdd': function() {
         if (!this._source._map)
             this._source.addTo(this._map);
+            console.log('adding' + this._name);
         this._source.addSubLayer(this._name);
     },
     'onRemove': function() {
@@ -678,7 +686,7 @@ wms.Overlay = L.Layer.extend({
         this.updateWmsParams();
         var url = this.getImageUrl();
         
-        if (this._currentUrl == url) {
+        if (this._currentUrl === url) {
             return;
         }
         this._currentUrl = url;
@@ -693,7 +701,7 @@ wms.Overlay = L.Layer.extend({
             if (!this._map) {
                 return;
             }
-            if (overlay._url != this._currentUrl) {
+            if (overlay._url !== this._currentUrl) {
                 this._map.removeLayer(overlay);
                 return;
             } else if (this._currentOverlay) {
@@ -766,7 +774,7 @@ function ajax(url, callback) {
             if (request.status === 200) {
                 callback.call(context, request.responseText);
             } else {
-                callback.call(context, "error");
+                callback.call(context, 'error');
             }
         }
     }

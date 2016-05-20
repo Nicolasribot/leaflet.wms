@@ -39,6 +39,7 @@
             var autowmsMap = '';
             var tiledMap = '';
             var overlayMap = '';
+            var wmsSource = null;
 
             function load() {
                 autowmsMap = createMap('autowms-map', false, true);
@@ -76,7 +77,7 @@
 //
 //                var ctrl = L.control.iconLayers(layers, {position: 'topright'}).addTo(map);
 
-                var wmsSource = null;
+                wmsSource = null;
 
                 if (autowms) {
                     // Test autowms mode: Adds only a WMS service URL
@@ -109,9 +110,9 @@
                             multi: true,
                             position: 'bottomleft',
                             maxLayersInRow: 10,
-//                             theme: '#707070'
+                             theme: '#707070'
 //                            theme: '#A8A8A8'
-                            theme: 'transparent'
+//                            theme: 'transparent'
                         };
                         L.control.iconLayers(this.getLayersForControl(), opt).addTo(map);
                     });
@@ -196,20 +197,6 @@
                 return layer;
             }
 
-            function allowDrop(ev) {
-                ev.preventDefault();
-            }
-
-            function drag(ev) {
-                ev.dataTransfer.setData("Text", ev.target.id);
-            }
-
-            function drop(ev) {
-                var data = ev.dataTransfer.getData("Text");
-                ev.target.appendChild(document.getElementById(data));
-                ev.preventDefault();
-            }
-
         </script>
     </head>
     <body onload="load()">
@@ -220,10 +207,6 @@
                 allowtransparency="true" frameborder="0" scrolling="0" width="95" height="20"></iframe>
 
         <h3>(new) Auto WMS Layers</h3>
-<!--        drag test
-        <div id="div1" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
-        <p id="drag1" draggable="true" ondragstart="drag(event)">This is a draggable paragraph. Drag this element into the rectangle.</p>-->
-
         <p>Click the map to trigger a getFeatureInfo on features</p>
         <form>
             <label for="range-autowms-map">Opacity</label>
