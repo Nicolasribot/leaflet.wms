@@ -48,11 +48,22 @@ function createMap(div, tiled, autowms) {
         
         source.addTo(map);
 
-        // Opacity slider
-        var slider = L.DomUtil.get('range-' + div);
-        L.DomEvent.addListener(slider, 'change', function() {
-            source.setOpacity(this.value);
-        });
+    // Add WMS source/layers
+    var source = wms.source(
+        "http://ows.terrestris.de/osm/service",
+        {
+            "format": "image/png",
+            "transparent": "true",
+            "attribution": "<a href='http://ows.terrestris.de/'>terrestris</a>",
+            "info_format": "text/html",
+            "tiled": tiled
+        }        
+    );
+
+    var layers = {
+        'Topographic': source.getLayer("TOPO-WMS").addTo(map),
+        'OSM Overlay': source.getLayer("OSM-Overlay-WMS").addTo(map)
+    };
 
         
     } else {
@@ -116,14 +127,11 @@ function createMap(div, tiled, autowms) {
 }
 
 function basemap() {
-    // Attribution (https://gist.github.com/mourner/1804938)
-    var mqcdn = "http://otile{s}.mqcdn.com/tiles/1.0.0/{type}/{z}/{x}/{y}.png";
-    var osmAttr = 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>';
-    var mqTilesAttr = 'Tiles &copy; <a href="http://www.mapquest.com/" target="_blank">MapQuest</a> <img src="http://developer.mapquest.com/content/osm/mq_logo.png" />';
-    return L.tileLayer(mqcdn, {
-        'subdomains': '1234',
-        'type': 'map',
-        'attribution': osmAttr + ', ' + mqTilesAttr
+    // maps.stamen.com
+    var attr = 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>. Data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.';
+    return L.tileLayer("http://tile.stamen.com/toner-background/{z}/{x}/{y}.png", {
+        opacity: 0.1,
+        attribution: attr
     });
     
 //    return L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {

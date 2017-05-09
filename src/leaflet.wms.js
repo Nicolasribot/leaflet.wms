@@ -1,7 +1,7 @@
 /*!
  * leaflet.wms.js
  * A collection of Leaflet utilities for working with Web Mapping services.
- * (c) 2014, Houston Engineering, Inc.
+ * (c) 2014-2016, Houston Engineering, Inc.
  * MIT License
  */
 
@@ -25,6 +25,19 @@
 // Module object
 var wms = {};
 
+// Quick shim for Object.keys()
+if (!('keys' in Object)) {
+    Object.keys = function(obj) {
+        var result = [];
+        for (var i in obj) {
+            if (obj.hasOwnProperty(i)) {
+                result.push(i);
+            }
+        }
+        return result;
+    };
+}
+
 /*
  * wms.Source
  * The Source object manages a single WMS connection.  Multiple "layers" can be
@@ -44,13 +57,16 @@ wms.Source = L.Layer.extend({
 
     'initialize': function(url, options) {
         L.setOptions(this, options);
+        if (this.options.tiled) {
+            this.options.untiled = false;
+        }
         this._url = url;
         this._subLayers = {}; // now a more complex object storing layer visibility, order, and wms paras
         this._overlay = this.createOverlay(this.options.tiled);
     },
 
-    'createOverlay': function(tiled) {
-        // Create overlay with all options other than tiled & identify
+    'createOverlay': function(untiled) {
+        // Create overlay with all options other than untiled & identify
         var overlayOptions = {};
         for (var opt in this.options) {
             if (opt !== 'tiled' && opt !== 'identify' && opt !== 'info_format'
@@ -59,10 +75,10 @@ wms.Source = L.Layer.extend({
                 overlayOptions[opt] = this.options[opt];
             }
         }
-        if (tiled) {
-            return wms.tileLayer(this._url, overlayOptions);
-        } else {
+        if (untiled) {
             return wms.overlay(this._url, overlayOptions);
+        } else {
+            return wms.tileLayer(this._url, overlayOptions);
         }
     },
 
@@ -84,6 +100,20 @@ wms.Source = L.Layer.extend({
          this.options.opacity = opacity;
          if (this._overlay) {
              this._overlay.setOpacity(opacity);
+         }
+    },
+    
+    'bringToBack': function() {
+         this.options.isBack = true;
+         if (this._overlay) {
+             this._overlay.bringToBack();
+         }
+    },
+
+    'bringToFront': function() {
+         this.options.isBack = false;
+         if (this._overlay) {
+             this._overlay.bringToFront();
          }
     },
 
@@ -299,7 +329,7 @@ wms.Source = L.Layer.extend({
         var layersList = this.getShowedLayers(layers);
         if (this.options.tiled) {
             // Create overlay instance to leverage updateWmsParams
-            overlay = this.createOverlay();
+            overlay = this.createOverlay(true);
             overlay.updateWmsParams(this._map);
             wmsParams = overlay.wmsParams;
             wmsParams.layers = layersList;
@@ -571,6 +601,7 @@ wms.source = function(url, options) {
 
 wms.Layer = L.Layer.extend({
     'initialize': function(source, layerName, options) {
+        L.setOptions(this, options);
         if (!source.addSubLayer) {
             // Assume source is a URL
             source = wms.getSourceForUrl(source, options);
@@ -589,6 +620,12 @@ wms.Layer = L.Layer.extend({
     },
     'setOpacity': function(opacity) {
         this._source.setOpacity(opacity);
+    },
+    'bringToBack': function() {
+        this._source.bringToBack();
+    },
+    'bringToFront': function() {
+        this._source.bringToFront();
     }
 });
 
@@ -631,7 +668,10 @@ wms.Overlay = L.Layer.extend({
         'crs': null,
         'uppercase': false,
         'attribution': '',
-        'opacity': 1
+        'opacity': 1,
+        'isBack': false,
+        'minZoom': 0,
+        'maxZoom': 18
     },
 
     'initialize': function(url, options) {
@@ -711,6 +751,16 @@ wms.Overlay = L.Layer.extend({
             overlay.setOpacity(
                 this.options.opacity ? this.options.opacity : 1
             );
+            if (this.options.isBack === true) {
+                overlay.bringToBack();
+            }
+            if (this.options.isBack === false) {
+                overlay.bringToFront();
+            }
+        }
+        if ((this._map.getZoom() < this.options.minZoom) ||
+            (this._map.getZoom() > this.options.maxZoom)){
+            this._map.removeLayer(overlay);
         }
     },
 
@@ -719,6 +769,20 @@ wms.Overlay = L.Layer.extend({
          if (this._currentOverlay) {
              this._currentOverlay.setOpacity(opacity);
          }
+    },
+
+    'bringToBack': function() {
+        this.options.isBack = true;
+        if (this._currentOverlay) {
+            this._currentOverlay.bringToBack();
+        }
+    },
+
+    'bringToFront': function() {
+        this.options.isBack = false;
+        if (this._currentOverlay) {
+            this._currentOverlay.bringToFront();
+        }
     },
 
     // See L.TileLayer.WMS: onAdd() & getTileUrl()
