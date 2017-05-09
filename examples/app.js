@@ -1,3 +1,4 @@
+// Nicolas Ribot
 requirejs.config({
     'baseUrl': '../lib',
     'paths': {
